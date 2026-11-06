@@ -48,3 +48,11 @@ node_modules/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# Agents
+.agent
+.agents
+.claude
+.codex
+.impeccable
+.opencode
