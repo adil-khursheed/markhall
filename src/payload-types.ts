@@ -82,6 +82,7 @@ export interface Config {
     'mock-attempts': MockAttempt;
     'student-uploads': StudentUpload;
     'payload-kv': PayloadKv;
+    'payload-jobs': PayloadJob;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
@@ -103,6 +104,7 @@ export interface Config {
     'mock-attempts': MockAttemptsSelect<false> | MockAttemptsSelect<true>;
     'student-uploads': StudentUploadsSelect<false> | StudentUploadsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
+    'payload-jobs': PayloadJobsSelect<false> | PayloadJobsSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
@@ -119,8 +121,16 @@ export interface Config {
   };
   user: User;
   jobs: {
-    tasks: unknown;
-    workflows: unknown;
+    tasks: {
+      embedContent: TaskEmbedContent;
+      inline: {
+        input: unknown;
+        output: unknown;
+      };
+    };
+    workflows: {
+      ingestDocument: WorkflowIngestDocument;
+    };
   };
 }
 export interface UserAuthOperations {
@@ -237,6 +247,9 @@ export interface SourceDocument {
   ingestStatus?: ('pending' | 'processing' | 'ready' | 'failed') | null;
   fileHash?: string | null;
   ingestError?: string | null;
+  chunkCount?: number | null;
+  questionCount?: number | null;
+  flaggedCount?: number | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -280,6 +293,7 @@ export interface KnowledgeBase {
     | boolean
     | null;
   pageRange?: string | null;
+  sourceDocument?: (number | null) | SourceDocument;
   contentHash?: string | null;
   board: 'cbse' | 'icse' | 'up';
   classLevel: number;
@@ -324,6 +338,7 @@ export interface QuestionBank {
   origin: 'board_pyq' | 'textbook' | 'generated' | 'teacher';
   pyqYear?: number | null;
   sourceDocument?: (number | null) | SourceDocument;
+  contentHash?: string | null;
   status?: ('draft' | 'in_review' | 'published' | 'rejected') | null;
   reviewedBy?: (number | null) | User;
   needsFigure?: boolean | null;
@@ -487,6 +502,99 @@ export interface PayloadKv {
     | number
     | boolean
     | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payload-jobs".
+ */
+export interface PayloadJob {
+  id: number;
+  /**
+   * Input data provided to the job
+   */
+  input?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  taskStatus?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  completedAt?: string | null;
+  totalTried?: number | null;
+  /**
+   * If hasError is true this job will not be retried
+   */
+  hasError?: boolean | null;
+  /**
+   * If hasError is true, this is the error that caused it
+   */
+  error?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Task execution log
+   */
+  log?:
+    | {
+        executedAt: string;
+        completedAt: string;
+        taskSlug: 'inline' | 'embedContent';
+        taskID: string;
+        input?:
+          | {
+              [k: string]: unknown;
+            }
+          | unknown[]
+          | string
+          | number
+          | boolean
+          | null;
+        output?:
+          | {
+              [k: string]: unknown;
+            }
+          | unknown[]
+          | string
+          | number
+          | boolean
+          | null;
+        state: 'failed' | 'succeeded';
+        error?:
+          | {
+              [k: string]: unknown;
+            }
+          | unknown[]
+          | string
+          | number
+          | boolean
+          | null;
+        id?: string | null;
+      }[]
+    | null;
+  workflowSlug?: 'ingestDocument' | null;
+  taskSlug?: ('inline' | 'embedContent') | null;
+  queue?: string | null;
+  waitUntil?: string | null;
+  processing?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -679,6 +787,9 @@ export interface SourceDocumentsSelect<T extends boolean = true> {
   ingestStatus?: T;
   fileHash?: T;
   ingestError?: T;
+  chunkCount?: T;
+  questionCount?: T;
+  flaggedCount?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;
@@ -712,6 +823,7 @@ export interface KnowledgeBaseSelect<T extends boolean = true> {
   content?: T;
   blueprint?: T;
   pageRange?: T;
+  sourceDocument?: T;
   contentHash?: T;
   board?: T;
   classLevel?: T;
@@ -747,6 +859,7 @@ export interface QuestionBankSelect<T extends boolean = true> {
   origin?: T;
   pyqYear?: T;
   sourceDocument?: T;
+  contentHash?: T;
   status?: T;
   reviewedBy?: T;
   needsFigure?: T;
@@ -890,6 +1003,38 @@ export interface PayloadKvSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payload-jobs_select".
+ */
+export interface PayloadJobsSelect<T extends boolean = true> {
+  input?: T;
+  taskStatus?: T;
+  completedAt?: T;
+  totalTried?: T;
+  hasError?: T;
+  error?: T;
+  log?:
+    | T
+    | {
+        executedAt?: T;
+        completedAt?: T;
+        taskSlug?: T;
+        taskID?: T;
+        input?: T;
+        output?: T;
+        state?: T;
+        error?: T;
+        id?: T;
+      };
+  workflowSlug?: T;
+  taskSlug?: T;
+  queue?: T;
+  waitUntil?: T;
+  processing?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-locked-documents_select".
  */
 export interface PayloadLockedDocumentsSelect<T extends boolean = true> {
@@ -929,6 +1074,26 @@ export interface CollectionsWidget {
     [k: string]: unknown;
   };
   width: 'full';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskEmbedContent".
+ */
+export interface TaskEmbedContent {
+  input: {
+    sourceType: 'knowledge' | 'question';
+    sourceId: number;
+  };
+  output?: unknown;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "WorkflowIngestDocument".
+ */
+export interface WorkflowIngestDocument {
+  input: {
+    documentId: number;
+  };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

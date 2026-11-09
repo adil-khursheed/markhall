@@ -19,6 +19,8 @@ import { Attempts } from './collections/Attempts'
 import { MockTests } from './collections/MockTests'
 import { MockAttempts } from './collections/MockAttempts'
 import { StudentUploads } from './collections/StudentUploads'
+import { embedContent } from './jobs/embedContent'
+import { ingestDocument } from './jobs/ingestDocument'
 import { env } from './lib/env'
 
 const filename = fileURLToPath(import.meta.url)
@@ -60,6 +62,8 @@ export default buildConfig({
   }),
   jobs: {
     autoRun: env.jobsAutoRun ? [{ allQueues: true, cron: '* * * * *' }] : undefined,
+    tasks: [embedContent],
+    workflows: [ingestDocument],
   },
   sharp,
   plugins: [],

@@ -153,46 +153,53 @@ Execution plan derived from `Markhall — Architecture & Implementation Blueprin
 
 **Tasks**
 
-- [ ] Enable Payload jobs and turn auto-run on only in the `worker` via `JOBS_AUTORUN`.
-- [ ] Implement `ingestDocument` workflow with small outputs:
-  - [ ] `extract`
-  - [ ] `segment`
-  - [ ] `classify`
-  - [ ] `verify`
-  - [ ] `persist`
-  - [ ] `embed`
-  - [ ] `finish`
-- [ ] Queue from `source-documents.afterChange` on create; set `ingestStatus: 'pending'`.
-- [ ] Extraction:
-  - [ ] Text per page with layout for digital PDFs.
-  - [ ] Detect empty text layers and broken math.
-  - [ ] Render problem pages to images and transcribe with a vision model to Markdown + LaTeX.
-  - [ ] Store page text in `source-pages` or on disk, never in the job output.
-- [ ] Segmentation:
-  - [ ] Syllabus splits at chapter/topic headings into roughly 200–500-token chunks.
-  - [ ] Papers split at question numbers and section headers.
-  - [ ] Structured output (`zod`) returns stem, type, marks, options and solution when present.
-- [ ] Classification:
-  - [ ] Pick one chapter from the closed list for that subject; never allow invented chapters.
-  - [ ] Estimate difficulty.
-- [ ] Verification:
-  - [ ] Send numerical questions with a given answer through the sandbox.
-  - [ ] On mismatch, set `in_review` and store an admin note.
-- [ ] Persistence:
-  - [ ] Upsert `knowledge-base` and `question-bank` by `contentHash`; re-runs update, not duplicate.
-  - [ ] Ingested PYQs and samples arrive as `draft`.
-- [ ] Embedding:
-  - [ ] Batch about 64 texts per call.
-  - [ ] Embed a context header plus content, for example `Chapter: ... Topic: ...`.
-  - [ ] Skip unchanged `contentHash` rows.
-  - [ ] Upsert `content_embeddings` with copied filter columns.
-- [ ] Completion:
-  - [ ] Set `ingestStatus: 'ready'` with chunk, question and flagged counts.
-  - [ ] On final failure set `failed` and store readable error text.
-  - [ ] Keep per-task retries and make retries safe to repeat.
-- [ ] Add an `embedContent` job for single-row admin edits, queued from `knowledge-base` and `question-bank` `afterChange` hooks.
-- [ ] Admin review flow: approve, reject, edit, mark `needsFigure`, re-ingest.
-- [ ] Add ingestion integration tests with a small fixture PDF.
+- [x] Enable Payload jobs and turn auto-run on only in the `worker` via `JOBS_AUTORUN`.
+- [x] Implement `ingestDocument` workflow with small outputs:
+  - [x] `extract`
+  - [x] `segment`
+  - [x] `classify`
+  - [x] `verify`
+  - [x] `persist`
+  - [x] `embed`
+  - [x] `finish`
+- [x] Queue from `source-documents.afterChange` on create; set `ingestStatus: 'pending'`.
+- [x] Extraction:
+  - [x] Text per page with layout for digital PDFs.
+  - [x] Detect empty text layers and broken math.
+  - [x] Render problem pages to images and transcribe with a vision model to Markdown + LaTeX.
+  - [x] Store page text in `source-pages` or on disk, never in the job output.
+- [x] Segmentation:
+  - [x] Syllabus splits at chapter/topic headings into roughly 200–500-token chunks.
+  - [x] Papers split at question numbers and section headers.
+  - [x] Structured output (`zod`) returns stem, type, marks, options and solution when present.
+- [x] Classification:
+  - [x] Pick one chapter from the closed list for that subject; never allow invented chapters.
+  - [x] Estimate difficulty.
+- [x] Verification:
+  - [x] Send numerical questions with a given answer through the sandbox.
+  - [x] On mismatch, set `in_review` and store an admin note.
+- [x] Persistence:
+  - [x] Upsert `knowledge-base` and `question-bank` by `contentHash`; re-runs update, not duplicate.
+  - [x] Ingested PYQs and samples arrive as `draft`.
+- [x] Embedding:
+  - [x] Batch about 64 texts per call.
+  - [x] Embed a context header plus content, for example `Chapter: ... Topic: ...`.
+  - [x] Skip unchanged `contentHash` rows.
+  - [x] Upsert `content_embeddings` with copied filter columns.
+- [x] Completion:
+  - [x] Set `ingestStatus: 'ready'` with chunk, question and flagged counts.
+  - [x] On final failure set `failed` and store readable error text.
+  - [x] Keep per-task retries and make retries safe to repeat.
+- [x] Add an `embedContent` job for single-row admin edits, queued from `knowledge-base` and `question-bank` `afterChange` hooks.
+- [x] Admin review flow: approve, reject, edit, mark `needsFigure`, re-ingest.
+- [x] Add ingestion integration tests with a small fixture PDF.
+
+**Phase 2 notes**
+
+- Implemented: `src/jobs/ingestDocument.ts`, `src/jobs/embedContent.ts`, `src/lib/ingest/` (`extract`, `segment`, `classify`, `verify`, `persist`, `embed`, `queue`, `store`, `text`), source-document and content `afterChange`/`afterDelete` hooks, admin count fields, re-ingest queueing, and `content_embeddings` in `src/migrations/20261109_155220_phase2_ingestion.ts`.
+- Verified: `pnpm typecheck`, `pnpm lint` (warnings only), `pnpm test:int` (18 tests pass), `pnpm build`, and the Phase 2 migration on a fresh `markhall_migrate_test` database. The fixture-PDF test covers text extraction, re-extraction without duplicate pages, and `contentHash` upserts.
+- Risks: no live model or embedding call was made because the OpenRouter account has no credits, so the full workflow is unproven end to end. The sandbox is still the Phase 4 placeholder, so numeric verification records `unavailable` and does not fail ingestion. Broken-math detection is a text-layer heuristic. The vector column is fixed at 1024 dimensions in the migration. Admin lists show status and counts after a refresh, not by live polling.
+- Not verified: a real PDF through extract, segment, classify, verify, persist and embed; the failed-job/re-ingest path; embedding dimension mismatches against the configured provider.
 
 **Exit criteria**
 

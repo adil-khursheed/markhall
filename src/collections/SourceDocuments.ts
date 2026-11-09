@@ -2,13 +2,15 @@ import type { CollectionConfig } from 'payload'
 
 import { adminOnly } from '../access'
 import { boardField, classLevelField, languageField } from '../fields/common'
+import { queueDocumentIngest } from '../hooks/ingest'
 import { rejectDuplicateSourceDocument, sourceDocumentHash } from '../hooks/sourceDocuments'
+import { queueIngest } from '../lib/ingest/queue'
 
 export const SourceDocuments: CollectionConfig = {
   slug: 'source-documents',
   admin: {
     useAsTitle: 'title',
-    defaultColumns: ['title', 'docType', 'board', 'classLevel', 'ingestStatus', 'createdAt'],
+    defaultColumns: ['title', 'docType', 'board', 'classLevel', 'ingestStatus', 'chunkCount', 'questionCount', 'flaggedCount', 'createdAt'],
     group: 'Ingestion',
     components: {
       edit: {
@@ -38,6 +40,8 @@ export const SourceDocuments: CollectionConfig = {
             overrideAccess: true,
           })
 
+          await queueIngest(req.payload, doc.id, req)
+
           return Response.json({ ok: true, ingestStatus: doc.ingestStatus })
         } catch {
           return Response.json({ error: 'Document not found' }, { status: 404 })
@@ -58,6 +62,7 @@ export const SourceDocuments: CollectionConfig = {
   hooks: {
     beforeValidate: [sourceDocumentHash],
     beforeChange: [rejectDuplicateSourceDocument],
+    afterChange: [queueDocumentIngest],
   },
   fields: [
     {
@@ -118,6 +123,33 @@ export const SourceDocuments: CollectionConfig = {
     {
       name: 'ingestError',
       type: 'textarea',
+      admin: {
+        readOnly: true,
+        position: 'sidebar',
+      },
+    },
+    {
+      name: 'chunkCount',
+      type: 'number',
+      defaultValue: 0,
+      admin: {
+        readOnly: true,
+        position: 'sidebar',
+      },
+    },
+    {
+      name: 'questionCount',
+      type: 'number',
+      defaultValue: 0,
+      admin: {
+        readOnly: true,
+        position: 'sidebar',
+      },
+    },
+    {
+      name: 'flaggedCount',
+      type: 'number',
+      defaultValue: 0,
       admin: {
         readOnly: true,
         position: 'sidebar',

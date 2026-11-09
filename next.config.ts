@@ -8,6 +8,7 @@ const dirname = path.dirname(__filename)
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  serverExternalPackages: ['@napi-rs/canvas', 'unpdf'],
   images: {
     localPatterns: [
       {

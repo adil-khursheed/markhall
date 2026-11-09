@@ -2,6 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { adminFieldOnly, adminOnly, adminOrPublished } from '../access'
 import { boardField, classLevelField, languageField, statusField } from '../fields/common'
+import { queueQuestionEmbed, removeQuestionEmbed } from '../hooks/ingest'
 
 export const QuestionBank: CollectionConfig = {
   slug: 'question-bank',
@@ -19,6 +20,10 @@ export const QuestionBank: CollectionConfig = {
     create: adminOnly,
     update: adminOnly,
     delete: adminOnly,
+  },
+  hooks: {
+    afterChange: [queueQuestionEmbed],
+    afterDelete: [removeQuestionEmbed],
   },
   fields: [
     {
@@ -142,6 +147,15 @@ export const QuestionBank: CollectionConfig = {
       name: 'sourceDocument',
       type: 'relationship',
       relationTo: 'source-documents',
+    },
+    {
+      name: 'contentHash',
+      type: 'text',
+      index: true,
+      admin: {
+        readOnly: true,
+        position: 'sidebar',
+      },
     },
     statusField,
     {

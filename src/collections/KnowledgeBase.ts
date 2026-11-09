@@ -2,6 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { adminOnly } from '../access'
 import { boardField, classLevelField, languageField } from '../fields/common'
+import { queueKnowledgeEmbed, removeKnowledgeEmbed } from '../hooks/ingest'
 
 export const KnowledgeBase: CollectionConfig = {
   slug: 'knowledge-base',
@@ -15,6 +16,10 @@ export const KnowledgeBase: CollectionConfig = {
     create: adminOnly,
     update: adminOnly,
     delete: adminOnly,
+  },
+  hooks: {
+    afterChange: [queueKnowledgeEmbed],
+    afterDelete: [removeKnowledgeEmbed],
   },
   fields: [
     {
@@ -47,6 +52,12 @@ export const KnowledgeBase: CollectionConfig = {
     {
       name: 'pageRange',
       type: 'text',
+    },
+    {
+      name: 'sourceDocument',
+      type: 'relationship',
+      relationTo: 'source-documents',
+      index: true,
     },
     {
       name: 'contentHash',
