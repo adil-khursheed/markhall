@@ -1,43 +1,135 @@
-version: '3'
+name: markhall
+
+# POSTGRES_PASSWORD and PAYLOAD_SECRET must be set in .env or the shell.
+
+x-app: &app
+  image: markhall-app
+  build:
+    context: .
+    dockerfile: Dockerfile
+  env_file: .env
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+    sandbox:
+      condition: service_healthy
+  networks:
+    - backend
+    - sandboxnet
 
 services:
-  payload:
-    image: node:22.23.4-alpine
+  web:
+    <<: *app
     ports:
-      - '3000:3000'
+      - '${WEB_PORT:-3000}:3000'
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-markhall}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:-markhall}
+      PAYLOAD_SECRET: ${PAYLOAD_SECRET:?PAYLOAD_SECRET is required}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      SANDBOX_URL: http://sandbox:8000
+      REDIS_URL: redis://redis:6379
+      JOBS_AUTORUN: 'false'
+      PORT: '3000'
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:3000/api/health']
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
     volumes:
-      - .:/home/node/app
-      - node_modules:/home/node/app/node_modules
-    working_dir: /home/node/app/
-    command: sh -c "corepack enable && corepack prepare pnpm@latest --activate && pnpm install && pnpm dev"
-    depends_on:
-      - mongo
-      # - postgres
-    env_file:
-      - .env
+      - uploads:/app/uploads
 
-  # Ensure your DATABASE_URL uses 'mongo' as the hostname ie. mongodb://mongo/my-db-name
-  mongo:
-    image: mongo:latest
+  worker:
+    <<: *app
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-markhall}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:-markhall}
+      PAYLOAD_SECRET: ${PAYLOAD_SECRET:?PAYLOAD_SECRET is required}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      SANDBOX_URL: http://sandbox:8000
+      REDIS_URL: redis://redis:6379
+      JOBS_AUTORUN: 'true'
+      PORT: '3001'
+      HOSTNAME: 0.0.0.0
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:3001/api/health']
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    volumes:
+      - uploads:/app/uploads
+
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-markhall}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-markhall}
     ports:
-      - '27017:27017'
-    command:
-      - --storageEngine=wiredTiger
+      - '127.0.0.1:${POSTGRES_PORT:-5433}:5432'
     volumes:
-      - data:/data/db
-    logging:
-      driver: none
+      - pgdata17:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-markhall} -d ${POSTGRES_DB:-markhall}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend
 
-  # Uncomment the following to use postgres
-  # postgres:
-  #   restart: always
-  #   image: postgres:latest
-  #   volumes:
-  #     - pgdata:/var/lib/postgresql/data
-  #   ports:
-  #     - "5432:5432"
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend
+
+  sandbox:
+    build:
+      context: ./sandbox
+      dockerfile: Dockerfile
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    user: '10001:10001'
+    pids_limit: 64
+    mem_limit: 256m
+    cpus: 0.5
+    networks:
+      - sandboxnet
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'python',
+          '-c',
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
 volumes:
-  data:
-  # pgdata:
-  node_modules:
+  pgdata17:
+  uploads:
+
+networks:
+  backend:
+  sandboxnet:
+    internal: true

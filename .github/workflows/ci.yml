@@ -1,0 +1,102 @@
+name: CI
+
+# Required repository secrets:
+# CI_POSTGRES_PASSWORD (URL-safe random value), PAYLOAD_SECRET, LLM_API_KEY
+# Optional e2e overrides: E2E_TEST_EMAIL, E2E_TEST_PASSWORD
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: markhall
+          POSTGRES_PASSWORD: ${{ secrets.CI_POSTGRES_PASSWORD }}
+          POSTGRES_DB: markhall
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U markhall -d markhall"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgres://markhall:${{ secrets.CI_POSTGRES_PASSWORD }}@localhost:5432/markhall
+      PAYLOAD_SECRET: ${{ secrets.PAYLOAD_SECRET }}
+      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+      E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
+      E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+      NEXT_TELEMETRY_DISABLED: '1'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm typecheck
+
+      - run: pnpm lint
+
+      - run: pnpm migrate
+
+      - run: pnpm test:int
+
+  e2e:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: markhall
+          POSTGRES_PASSWORD: ${{ secrets.CI_POSTGRES_PASSWORD }}
+          POSTGRES_DB: markhall
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U markhall -d markhall"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgres://markhall:${{ secrets.CI_POSTGRES_PASSWORD }}@localhost:5432/markhall
+      PAYLOAD_SECRET: ${{ secrets.PAYLOAD_SECRET }}
+      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+      E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
+      E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+      NEXT_TELEMETRY_DISABLED: '1'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm exec playwright install --with-deps chromium
+
+      - run: pnpm test:e2e

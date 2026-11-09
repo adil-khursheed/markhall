@@ -101,6 +101,7 @@ export async function signUp(_previous: AuthState, formData: FormData): Promise<
     await payload.create({
       collection: 'users',
       data: { name, email, password, role: 'student' },
+      context: { publicSignup: true },
       overrideAccess: true,
     })
   } catch (error) {

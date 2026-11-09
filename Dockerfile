@@ -2,6 +2,8 @@
 # From https://github.com/vercel/next.js/blob/canary/examples/with-docker/Dockerfile
 
 FROM node:22.23.4-alpine AS base
+ARG PNPM_VERSION=10.33.0
+RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
 
 # Install dependencies only when needed
 FROM base AS deps
@@ -14,7 +16,7 @@ COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* ./
 RUN \
   if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
   elif [ -f package-lock.json ]; then npm ci; \
-  elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm i --frozen-lockfile; \
+  elif [ -f pnpm-lock.yaml ]; then pnpm i --frozen-lockfile; \
   else echo "Lockfile not found." && exit 1; \
   fi
 
@@ -30,10 +32,15 @@ COPY . .
 # Uncomment the following line in case you want to disable telemetry during the build.
 # ENV NEXT_TELEMETRY_DISABLED 1
 
+# Build-time placeholders; runtime values come from the container environment.
+ENV PAYLOAD_SECRET=build-only
+ENV DATABASE_URL=postgres://build:build@localhost:5432/build
+ENV NEXT_TELEMETRY_DISABLED=1
+
 RUN \
   if [ -f yarn.lock ]; then yarn run build; \
   elif [ -f package-lock.json ]; then npm run build; \
-  elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm run build; \
+  elif [ -f pnpm-lock.yaml ]; then pnpm run build; \
   else echo "Lockfile not found." && exit 1; \
   fi
 
@@ -54,6 +61,8 @@ COPY --from=builder /app/public ./public
 # Set the correct permission for prerender cache
 RUN mkdir .next
 RUN chown nextjs:nodejs .next
+RUN mkdir -p /app/uploads
+RUN chown nextjs:nodejs /app/uploads
 
 # Automatically leverage output traces to reduce image size
 # https://nextjs.org/docs/advanced-features/output-file-tracing

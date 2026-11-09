@@ -69,6 +69,18 @@ export interface Config {
   collections: {
     users: User;
     media: Media;
+    subjects: Subject;
+    chapters: Chapter;
+    'source-documents': SourceDocument;
+    'source-pages': SourcePage;
+    'knowledge-base': KnowledgeBase;
+    'question-bank': QuestionBank;
+    'topic-mastery': TopicMastery;
+    'doubt-threads': DoubtThread;
+    attempts: Attempt;
+    'mock-tests': MockTest;
+    'mock-attempts': MockAttempt;
+    'student-uploads': StudentUpload;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -78,6 +90,18 @@ export interface Config {
   collectionsSelect: {
     users: UsersSelect<false> | UsersSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
+    subjects: SubjectsSelect<false> | SubjectsSelect<true>;
+    chapters: ChaptersSelect<false> | ChaptersSelect<true>;
+    'source-documents': SourceDocumentsSelect<false> | SourceDocumentsSelect<true>;
+    'source-pages': SourcePagesSelect<false> | SourcePagesSelect<true>;
+    'knowledge-base': KnowledgeBaseSelect<false> | KnowledgeBaseSelect<true>;
+    'question-bank': QuestionBankSelect<false> | QuestionBankSelect<true>;
+    'topic-mastery': TopicMasterySelect<false> | TopicMasterySelect<true>;
+    'doubt-threads': DoubtThreadsSelect<false> | DoubtThreadsSelect<true>;
+    attempts: AttemptsSelect<false> | AttemptsSelect<true>;
+    'mock-tests': MockTestsSelect<false> | MockTestsSelect<true>;
+    'mock-attempts': MockAttemptsSelect<false> | MockAttemptsSelect<true>;
+    'student-uploads': StudentUploadsSelect<false> | StudentUploadsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -128,6 +152,9 @@ export interface User {
    */
   name: string;
   role: 'student' | 'admin';
+  board?: ('cbse' | 'icse' | 'up') | null;
+  classLevel?: number | null;
+  preferredLanguage?: ('en' | 'hi') | null;
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -155,6 +182,283 @@ export interface User {
 export interface Media {
   id: number;
   alt: string;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "subjects".
+ */
+export interface Subject {
+  id: number;
+  board: 'cbse' | 'icse' | 'up';
+  classLevel: number;
+  name: string;
+  code: string;
+  academicYear: string;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "chapters".
+ */
+export interface Chapter {
+  id: number;
+  subject: number | Subject;
+  number: number;
+  title: string;
+  weightageMarks?: number | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "source-documents".
+ */
+export interface SourceDocument {
+  id: number;
+  title: string;
+  docType: 'textbook' | 'syllabus' | 'pyq' | 'marking_scheme' | 'other';
+  board: 'cbse' | 'icse' | 'up';
+  classLevel: number;
+  subject: number | Subject;
+  year?: number | null;
+  language?: ('en' | 'hi') | null;
+  ingestStatus?: ('pending' | 'processing' | 'ready' | 'failed') | null;
+  fileHash?: string | null;
+  ingestError?: string | null;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "source-pages".
+ */
+export interface SourcePage {
+  id: number;
+  document: number | SourceDocument;
+  pageNumber: number;
+  text: string;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "knowledge-base".
+ */
+export interface KnowledgeBase {
+  id: number;
+  kind: 'concept' | 'formula' | 'example' | 'definition';
+  chapter: number | Chapter;
+  content: string;
+  blueprint?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  pageRange?: string | null;
+  contentHash?: string | null;
+  board: 'cbse' | 'icse' | 'up';
+  classLevel: number;
+  subject: number | Subject;
+  language?: ('en' | 'hi') | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "question-bank".
+ */
+export interface QuestionBank {
+  id: number;
+  stem: string;
+  type: 'mcq' | 'short' | 'long' | 'numeric';
+  options?:
+    | {
+        label: 'A' | 'B' | 'C' | 'D';
+        text: string;
+        id?: string | null;
+      }[]
+    | null;
+  marks: number;
+  difficulty: 'easy' | 'medium' | 'hard';
+  board: 'cbse' | 'icse' | 'up';
+  classLevel: number;
+  subject: number | Subject;
+  chapter: number | Chapter;
+  language?: ('en' | 'hi') | null;
+  canonicalSolution?: string | null;
+  finalAnswer?: string | null;
+  verification?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  origin: 'board_pyq' | 'textbook' | 'generated' | 'teacher';
+  pyqYear?: number | null;
+  sourceDocument?: (number | null) | SourceDocument;
+  status?: ('draft' | 'in_review' | 'published' | 'rejected') | null;
+  reviewedBy?: (number | null) | User;
+  needsFigure?: boolean | null;
+  reviewNotes?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "topic-mastery".
+ */
+export interface TopicMastery {
+  id: number;
+  user: number | User;
+  chapter: number | Chapter;
+  attempts?: number | null;
+  correct?: number | null;
+  mastery?: number | null;
+  lastSeenAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "doubt-threads".
+ */
+export interface DoubtThread {
+  id: number;
+  user: number | User;
+  chapter?: (number | null) | Chapter;
+  messages?:
+    | {
+        role: 'user' | 'assistant';
+        content: string;
+        at: string;
+        id?: string | null;
+      }[]
+    | null;
+  flagged?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "attempts".
+ */
+export interface Attempt {
+  id: number;
+  user: number | User;
+  question: number | QuestionBank;
+  answer?: string | null;
+  isCorrect?: boolean | null;
+  timeMs?: number | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "mock-tests".
+ */
+export interface MockTest {
+  id: number;
+  title: string;
+  board: 'cbse' | 'icse' | 'up';
+  classLevel: number;
+  subject: number | Subject;
+  durationMinutes: number;
+  totalMarks: number;
+  negativeMarking?: number | null;
+  sections?:
+    | {
+        name: string;
+        instructions?: string | null;
+        questions: (number | QuestionBank)[];
+        marksEach?: number | null;
+        id?: string | null;
+      }[]
+    | null;
+  generatedFor?: (number | null) | User;
+  blueprintSnapshot?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  status?: ('draft' | 'in_review' | 'published' | 'rejected') | null;
+  reviewNotes?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "mock-attempts".
+ */
+export interface MockAttempt {
+  id: number;
+  user: number | User;
+  test: number | MockTest;
+  startedAt: string;
+  deadlineAt?: string | null;
+  submittedAt?: string | null;
+  answers?:
+    | {
+        question: number | QuestionBank;
+        response?: string | null;
+        images?: (number | StudentUpload)[] | null;
+        autoScore?: number | null;
+        aiScore?: number | null;
+        finalScore?: number | null;
+        feedback?: string | null;
+        gradingStatus?: ('pending' | 'graded') | null;
+        id?: string | null;
+      }[]
+    | null;
+  totalScore?: number | null;
+  status?: ('in_progress' | 'submitted' | 'graded' | 'expired') | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "student-uploads".
+ */
+export interface StudentUpload {
+  id: number;
+  owner: number | User;
+  purpose: 'doubt' | 'mock_answer' | 'profile';
+  thread?: (number | null) | DoubtThread;
+  attempt?: (number | null) | MockAttempt;
+  transcription?: string | null;
+  transcriptionConfidence?: number | null;
+  retentionUntil?: string | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -198,6 +502,54 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'media';
         value: number | Media;
+      } | null)
+    | ({
+        relationTo: 'subjects';
+        value: number | Subject;
+      } | null)
+    | ({
+        relationTo: 'chapters';
+        value: number | Chapter;
+      } | null)
+    | ({
+        relationTo: 'source-documents';
+        value: number | SourceDocument;
+      } | null)
+    | ({
+        relationTo: 'source-pages';
+        value: number | SourcePage;
+      } | null)
+    | ({
+        relationTo: 'knowledge-base';
+        value: number | KnowledgeBase;
+      } | null)
+    | ({
+        relationTo: 'question-bank';
+        value: number | QuestionBank;
+      } | null)
+    | ({
+        relationTo: 'topic-mastery';
+        value: number | TopicMastery;
+      } | null)
+    | ({
+        relationTo: 'doubt-threads';
+        value: number | DoubtThread;
+      } | null)
+    | ({
+        relationTo: 'attempts';
+        value: number | Attempt;
+      } | null)
+    | ({
+        relationTo: 'mock-tests';
+        value: number | MockTest;
+      } | null)
+    | ({
+        relationTo: 'mock-attempts';
+        value: number | MockAttempt;
+      } | null)
+    | ({
+        relationTo: 'student-uploads';
+        value: number | StudentUpload;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -248,6 +600,9 @@ export interface PayloadMigration {
 export interface UsersSelect<T extends boolean = true> {
   name?: T;
   role?: T;
+  board?: T;
+  classLevel?: T;
+  preferredLanguage?: T;
   updatedAt?: T;
   createdAt?: T;
   email?: T;
@@ -272,6 +627,247 @@ export interface UsersSelect<T extends boolean = true> {
  */
 export interface MediaSelect<T extends boolean = true> {
   alt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "subjects_select".
+ */
+export interface SubjectsSelect<T extends boolean = true> {
+  board?: T;
+  classLevel?: T;
+  name?: T;
+  code?: T;
+  academicYear?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "chapters_select".
+ */
+export interface ChaptersSelect<T extends boolean = true> {
+  subject?: T;
+  number?: T;
+  title?: T;
+  weightageMarks?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "source-documents_select".
+ */
+export interface SourceDocumentsSelect<T extends boolean = true> {
+  title?: T;
+  docType?: T;
+  board?: T;
+  classLevel?: T;
+  subject?: T;
+  year?: T;
+  language?: T;
+  ingestStatus?: T;
+  fileHash?: T;
+  ingestError?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "source-pages_select".
+ */
+export interface SourcePagesSelect<T extends boolean = true> {
+  document?: T;
+  pageNumber?: T;
+  text?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "knowledge-base_select".
+ */
+export interface KnowledgeBaseSelect<T extends boolean = true> {
+  kind?: T;
+  chapter?: T;
+  content?: T;
+  blueprint?: T;
+  pageRange?: T;
+  contentHash?: T;
+  board?: T;
+  classLevel?: T;
+  subject?: T;
+  language?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "question-bank_select".
+ */
+export interface QuestionBankSelect<T extends boolean = true> {
+  stem?: T;
+  type?: T;
+  options?:
+    | T
+    | {
+        label?: T;
+        text?: T;
+        id?: T;
+      };
+  marks?: T;
+  difficulty?: T;
+  board?: T;
+  classLevel?: T;
+  subject?: T;
+  chapter?: T;
+  language?: T;
+  canonicalSolution?: T;
+  finalAnswer?: T;
+  verification?: T;
+  origin?: T;
+  pyqYear?: T;
+  sourceDocument?: T;
+  status?: T;
+  reviewedBy?: T;
+  needsFigure?: T;
+  reviewNotes?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "topic-mastery_select".
+ */
+export interface TopicMasterySelect<T extends boolean = true> {
+  user?: T;
+  chapter?: T;
+  attempts?: T;
+  correct?: T;
+  mastery?: T;
+  lastSeenAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "doubt-threads_select".
+ */
+export interface DoubtThreadsSelect<T extends boolean = true> {
+  user?: T;
+  chapter?: T;
+  messages?:
+    | T
+    | {
+        role?: T;
+        content?: T;
+        at?: T;
+        id?: T;
+      };
+  flagged?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "attempts_select".
+ */
+export interface AttemptsSelect<T extends boolean = true> {
+  user?: T;
+  question?: T;
+  answer?: T;
+  isCorrect?: T;
+  timeMs?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "mock-tests_select".
+ */
+export interface MockTestsSelect<T extends boolean = true> {
+  title?: T;
+  board?: T;
+  classLevel?: T;
+  subject?: T;
+  durationMinutes?: T;
+  totalMarks?: T;
+  negativeMarking?: T;
+  sections?:
+    | T
+    | {
+        name?: T;
+        instructions?: T;
+        questions?: T;
+        marksEach?: T;
+        id?: T;
+      };
+  generatedFor?: T;
+  blueprintSnapshot?: T;
+  status?: T;
+  reviewNotes?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "mock-attempts_select".
+ */
+export interface MockAttemptsSelect<T extends boolean = true> {
+  user?: T;
+  test?: T;
+  startedAt?: T;
+  deadlineAt?: T;
+  submittedAt?: T;
+  answers?:
+    | T
+    | {
+        question?: T;
+        response?: T;
+        images?: T;
+        autoScore?: T;
+        aiScore?: T;
+        finalScore?: T;
+        feedback?: T;
+        gradingStatus?: T;
+        id?: T;
+      };
+  totalScore?: T;
+  status?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "student-uploads_select".
+ */
+export interface StudentUploadsSelect<T extends boolean = true> {
+  owner?: T;
+  purpose?: T;
+  thread?: T;
+  attempt?: T;
+  transcription?: T;
+  transcriptionConfidence?: T;
+  retentionUntil?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;
