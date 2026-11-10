@@ -63,7 +63,7 @@ function toKnowledgeRow(doc: KnowledgeBase): EmbedRow {
     chapterId: doc.chapter ? relationId(doc.chapter) : null,
     language: doc.language ?? null,
     difficulty: null,
-    status: null,
+    status: 'published',
     contentHash: doc.contentHash ?? '',
     text: knowledgeEmbeddingText(doc),
   }

@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { adminOnly } from '../access'
+import { adminOnly, loggedIn } from '../access'
 import { boardField, classLevelField, languageField } from '../fields/common'
 import { queueKnowledgeEmbed, removeKnowledgeEmbed } from '../hooks/ingest'
 
@@ -12,7 +12,7 @@ export const KnowledgeBase: CollectionConfig = {
     group: 'Ingestion',
   },
   access: {
-    read: adminOnly,
+    read: loggedIn,
     create: adminOnly,
     update: adminOnly,
     delete: adminOnly,

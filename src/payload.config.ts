@@ -58,7 +58,8 @@ export default buildConfig({
     pool: {
       connectionString: env.databaseUrl,
     },
-    push: process.env.NODE_ENV !== 'production',
+    // The pgvector sidecar table is not in Payload's schema, so a dev push would drop it.
+    push: false,
   }),
   jobs: {
     autoRun: env.jobsAutoRun ? [{ allQueues: true, cron: '* * * * *' }] : undefined,

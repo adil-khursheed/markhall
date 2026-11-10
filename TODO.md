@@ -217,24 +217,24 @@ Execution plan derived from `Markhall — Architecture & Implementation Blueprin
 
 **Tasks**
 
-- [ ] Add the `vector` extension and `content_embeddings` table through a migration or the adapter schema hook.
-- [ ] Table columns: `id`, `source_type`, `source_id`, `board`, `class_level`, `subject_id`, `chapter_id`, `language`, `difficulty`, `status`, `content_hash`, `embedding`.
-- [ ] Add unique constraint on `(source_type, source_id)`.
-- [ ] Add HNSW index with `vector_cosine_ops` and a btree filter index.
-- [ ] Implement `vectorSearch(payload, queryVec, filter, limit)`:
-  - [ ] Use `payload.db.drizzle` and a transaction.
-  - [ ] Set `hnsw.iterative_scan = relaxed_order` and `hnsw.ef_search`.
-  - [ ] Hard-filter `source_type`, `board`, `class_level`, `status`, then optional subject, chapter, language and difficulty.
-  - [ ] Hydrate rows through `payload.find` so access control and hooks still apply.
-  - [ ] Return documents with similarity scores.
-- [ ] Add a content API or server helper that injects filters from the session, never from model output.
-- [ ] Add tests for:
-  - [ ] Board/class/subject isolation.
-  - [ ] Published-only filtering.
-  - [ ] Chapter and language filters.
-  - [ ] Empty candidate set.
-  - [ ] Access control during hydration.
-- [ ] Measure and record retrieval latency on a representative corpus.
+- [x] Add the `vector` extension and `content_embeddings` table through a migration or the adapter schema hook.
+- [x] Table columns: `id`, `source_type`, `source_id`, `board`, `class_level`, `subject_id`, `chapter_id`, `language`, `difficulty`, `status`, `content_hash`, `embedding`.
+- [x] Add unique constraint on `(source_type, source_id)`.
+- [x] Add HNSW index with `vector_cosine_ops` and a btree filter index.
+- [x] Implement `vectorSearch(payload, queryVec, filter, limit)`:
+  - [x] Use `payload.db.drizzle` and a transaction.
+  - [x] Set `hnsw.iterative_scan = relaxed_order` and `hnsw.ef_search`.
+  - [x] Hard-filter `source_type`, `board`, `class_level`, `status`, then optional subject, chapter, language and difficulty.
+  - [x] Hydrate rows through `payload.find` so access control and hooks still apply.
+  - [x] Return documents with similarity scores.
+- [x] Add a content API or server helper that injects filters from the session, never from model output.
+- [x] Add tests for:
+  - [x] Board/class/subject isolation.
+  - [x] Published-only filtering.
+  - [x] Chapter and language filters.
+  - [x] Empty candidate set.
+  - [x] Access control during hydration.
+- [ ] Measure and record retrieval latency on a representative corpus. (No representative corpus exists yet.)
 
 **Exit criteria**
 
@@ -244,6 +244,15 @@ Execution plan derived from `Markhall — Architecture & Implementation Blueprin
 - Retrieval tests run in CI against a seeded vector table.
 
 ---
+
+**Phase 3 notes**
+
+- Implemented: `src/lib/vector/search.ts`, `src/lib/vector/content.ts`, `src/migrations/20261110_120000_phase3_retrieval.ts`, and `tests/int/retrieval.int.spec.ts`.
+- Migration adds the HNSW index, backfills knowledge rows to `status = 'published'`, and reuses the existing btree filter index and unique constraint.
+- Knowledge embeddings now store `status = 'published'`; `knowledge-base` read is authenticated-only so hydration returns chunks to students, while writes stay admin-only.
+- Push is disabled in `payload.config.ts`: Drizzle dev push treated `content_embeddings` as an unknown table and dropped it.
+- Verified: `pnpm typecheck`, `pnpm lint` (warnings only), `pnpm build`, `pnpm test:int` (24 tests pass), migrations applied to a fresh database, HNSW and btree indexes present, and pgvector 0.8.7 in the Compose image.
+- Risks: `hnsw.iterative_scan` requires pgvector 0.8+; internal calls without a `user` bypass Payload access during hydration. Knowledge chunks have no review status, so any signed-in student can read ingested chunks. `searchContent` applies the profile language as a hard filter, which needs revisiting for Hinglish retrieval. Latency on a real corpus is not measured.
 
 ## Phase 4 — Python sandbox service
 
