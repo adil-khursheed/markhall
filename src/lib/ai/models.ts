@@ -6,6 +6,8 @@ import { env } from '@/lib/env'
 
 export type ModelRole = 'router' | 'solver' | 'explainer' | 'judge' | 'vision'
 
+const MAX_OUTPUT_TOKENS = 4096
+
 const models = new Map<ModelRole, BaseChatModel>()
 let embedder: Embeddings | undefined
 
@@ -24,6 +26,7 @@ export function getModel(role: ModelRole): BaseChatModel {
   const model = new ChatOpenAI({
     model: env.models[role],
     apiKey: env.llmApiKey,
+    maxTokens: MAX_OUTPUT_TOKENS,
     configuration: env.llmBaseUrl ? { baseURL: env.llmBaseUrl } : undefined,
   })
   models.set(role, model)

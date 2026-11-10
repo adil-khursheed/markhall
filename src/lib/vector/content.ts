@@ -5,8 +5,8 @@ import { getEmbedder } from '@/lib/ai/models'
 import { env } from '@/lib/env'
 import { vectorSearch, type SourceType } from './search'
 
-export type ContentQuery = {
-  sourceType: SourceType
+export type ContentQuery<T extends SourceType = SourceType> = {
+  sourceType: T
   query: string
   subjectId?: number
   chapterId?: number
@@ -14,7 +14,11 @@ export type ContentQuery = {
   limit?: number
 }
 
-export async function searchContent(payload: Payload, user: User, query: ContentQuery) {
+export async function searchContent<T extends SourceType>(
+  payload: Payload,
+  user: User,
+  query: ContentQuery<T>,
+) {
   if (!user.board || !user.classLevel) {
     throw new Error('Set board and classLevel on the profile before searching content.')
   }
@@ -26,7 +30,7 @@ export async function searchContent(payload: Payload, user: User, query: Content
     )
   }
 
-  return vectorSearch(
+  return vectorSearch<T>(
     payload,
     vector,
     {

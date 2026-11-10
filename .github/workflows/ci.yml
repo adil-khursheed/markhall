@@ -57,6 +57,25 @@ jobs:
 
       - run: pnpm test:int
 
+      - name: Start sandbox for the golden evaluation
+        run: |
+          docker build -t markhall-sandbox ./sandbox
+          docker network create --internal sandboxnet
+          docker run -d --name sandbox --network sandboxnet --read-only --tmpfs /tmp:size=64m --pids-limit 64 --memory 512m --cpus 1 --user 10001:10001 -e SANDBOX_WORKERS=2 -e SANDBOX_QUEUE_LIMIT=8 -e SANDBOX_MEMORY_MB=192 -e SANDBOX_RATE_LIMIT=60 markhall-sandbox
+          SANDBOX_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' sandbox)
+          docker run -d --name sandbox-proxy -p 127.0.0.1:8000:8000 alpine/socat tcp-listen:8000,fork,reuseaddr tcp:$SANDBOX_IP:8000
+          docker network connect sandboxnet sandbox-proxy
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8000/health; then exit 0; fi
+            sleep 1
+          done
+          echo "Sandbox did not become healthy" >&2
+          exit 1
+
+      - run: pnpm eval:golden
+        env:
+          SANDBOX_URL: http://127.0.0.1:8000
+
   sandbox:
     runs-on: ubuntu-latest
 

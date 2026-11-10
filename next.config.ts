@@ -8,7 +8,12 @@ const dirname = path.dirname(__filename)
 
 const nextConfig: NextConfig = {
   output: 'standalone',
-  serverExternalPackages: ['@napi-rs/canvas', 'unpdf'],
+  serverExternalPackages: [
+    '@napi-rs/canvas',
+    'unpdf',
+    '@langchain/langgraph-checkpoint-postgres',
+    'pg',
+  ],
   images: {
     localPatterns: [
       {

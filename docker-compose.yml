@@ -67,6 +67,18 @@ services:
     volumes:
       - uploads:/app/uploads
 
+  sandbox-proxy:
+    image: alpine/socat
+    command: tcp-listen:8000,fork,reuseaddr tcp:sandbox:8000
+    ports:
+      - '127.0.0.1:${SANDBOX_PORT:-8000}:8000'
+    depends_on:
+      sandbox:
+        condition: service_healthy
+    networks:
+      - edge
+      - sandboxnet
+
   postgres:
     image: pgvector/pgvector:pg17
     environment:
@@ -136,5 +148,6 @@ volumes:
 
 networks:
   backend:
+  edge:
   sandboxnet:
     internal: true
