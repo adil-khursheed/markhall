@@ -59,11 +59,11 @@ function parseSandboxAnswer(stdout: string) {
   return undefined
 }
 
-async function runSandbox(script: string): Promise<SandboxResult> {
+async function runSandbox(script: string, user: string): Promise<SandboxResult> {
   const response = await fetch(`${env.sandboxUrl.replace(/\/$/, '')}/runPython`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ script, timeout: env.sandboxTimeoutMs }),
+    body: JSON.stringify({ script, timeout: env.sandboxTimeoutMs / 1000, user }),
     signal: AbortSignal.timeout(env.sandboxTimeoutMs + 1000),
   })
 
@@ -71,7 +71,7 @@ async function runSandbox(script: string): Promise<SandboxResult> {
   return (await response.json()) as SandboxResult
 }
 
-async function verifyQuestion(question: QuestionItem) {
+async function verifyQuestion(question: QuestionItem, documentId: number | string) {
   const expected = numericValue(question.finalAnswer)
   if (question.type !== 'numeric' && expected === undefined) return
 
@@ -95,7 +95,7 @@ Expected answer from the source: ${question.finalAnswer}`,
 
   let result: SandboxResult
   try {
-    result = await runSandbox(script)
+    result = await runSandbox(script, `ingest:${documentId}`)
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error)
     question.verification = { status: 'unavailable', detail: reason }
@@ -143,7 +143,7 @@ export async function verifyNumerics(documentId: number | string) {
 
     checked += 1
     try {
-      await verifyQuestion(question)
+      await verifyQuestion(question, documentId)
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error)
       question.verification = { status: 'unavailable', detail: reason }

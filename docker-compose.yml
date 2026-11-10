@@ -101,15 +101,20 @@ services:
       dockerfile: Dockerfile
     read_only: true
     tmpfs:
-      - /tmp
+      - /tmp:size=64m
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
     user: '10001:10001'
     pids_limit: 64
-    mem_limit: 256m
-    cpus: 0.5
+    mem_limit: 512m
+    cpus: 1.0
+    environment:
+      SANDBOX_WORKERS: ${SANDBOX_WORKERS:-2}
+      SANDBOX_QUEUE_LIMIT: ${SANDBOX_QUEUE_LIMIT:-8}
+      SANDBOX_MEMORY_MB: ${SANDBOX_MEMORY_MB:-192}
+      SANDBOX_RATE_LIMIT: ${SANDBOX_RATE_LIMIT:-60}
     networks:
       - sandboxnet
     healthcheck:

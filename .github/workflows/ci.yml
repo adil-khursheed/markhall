@@ -57,6 +57,20 @@ jobs:
 
       - run: pnpm test:int
 
+  sandbox:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: docker build -t markhall-sandbox ./sandbox
+
+      - run: >-
+          docker run --rm --network none --read-only --tmpfs /tmp:size=64m
+          --pids-limit 64 --memory 512m --user 10001:10001
+          -e SANDBOX_TEST_ISOLATED=1 markhall-sandbox
+          python -m unittest -v test_app
+
   e2e:
     runs-on: ubuntu-latest
 
