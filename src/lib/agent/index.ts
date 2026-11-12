@@ -22,6 +22,50 @@ export type TutorResult = {
   flagged: boolean
 }
 
+export async function persistExchange(input: {
+  payload: Payload
+  user: User
+  threadId: number | string
+  text: string
+  content: string
+  flagged?: boolean
+  chapterId?: number
+}) {
+  const { payload, user, threadId, text, content } = input
+
+  const thread = await payload.findByID({
+    collection: 'doubt-threads',
+    id: threadId,
+    depth: 0,
+    user,
+    overrideAccess: false,
+  })
+
+  const at = new Date().toISOString()
+  const messages = (thread.messages ?? []).map((message) => ({
+    role: message.role,
+    content: message.content,
+    at: message.at,
+  }))
+
+  await payload.update({
+    collection: 'doubt-threads',
+    id: threadId,
+    depth: 0,
+    user,
+    overrideAccess: false,
+    data: {
+      messages: [
+        ...messages,
+        { role: 'user', content: text, at },
+        { role: 'assistant', content, at },
+      ],
+      flagged: Boolean(input.flagged) || Boolean(thread.flagged),
+      ...(input.chapterId ? { chapter: input.chapterId } : {}),
+    },
+  })
+}
+
 export async function runTutor(input: {
   payload: Payload
   user: User
@@ -31,14 +75,6 @@ export async function runTutor(input: {
   chapterId?: number
 }): Promise<TutorResult> {
   const { payload, user, threadId, text } = input
-
-  const thread = await payload.findByID({
-    collection: 'doubt-threads',
-    id: threadId,
-    depth: 0,
-    user,
-    overrideAccess: false,
-  })
 
   const graph = buildTutorGraph({ payload, user, checkpointer: await getCheckpointer() })
   const state = await graph.invoke(
@@ -62,28 +98,14 @@ export async function runTutor(input: {
   const persist = Boolean(content) && (Boolean(state.validation?.ok) || terminalWithoutDraftValidation)
 
   if (persist) {
-    const at = new Date().toISOString()
-    const messages = (thread.messages ?? []).map((message) => ({
-      role: message.role,
-      content: message.content,
-      at: message.at,
-    }))
-
-    await payload.update({
-      collection: 'doubt-threads',
-      id: threadId,
-      depth: 0,
+    await persistExchange({
+      payload,
       user,
-      overrideAccess: false,
-      data: {
-        messages: [
-          ...messages,
-          { role: 'user', content: text, at },
-          { role: 'assistant', content, at },
-        ],
-        flagged: Boolean(state.flagged) || Boolean(thread.flagged),
-        ...(state.request?.chapterId ? { chapter: state.request.chapterId } : {}),
-      },
+      threadId,
+      text,
+      content,
+      flagged: Boolean(state.flagged),
+      chapterId: state.request?.chapterId,
     })
   }
 

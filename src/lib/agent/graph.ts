@@ -38,7 +38,7 @@ type GraphDeps = {
   checkpointer: BaseCheckpointSaver
 }
 
-function messageText(content: unknown): string {
+export function messageText(content: unknown): string {
   if (typeof content === 'string') return content
   if (!Array.isArray(content)) return ''
   return content
@@ -79,7 +79,7 @@ function masteryNote(context: TutorContext, chapterId?: number) {
   return 'No mastery signal; keep the explanation straightforward.'
 }
 
-function stripFences(text: string) {
+export function stripFences(text: string) {
   return text
     .replace(/^```(?:markdown|md)?\s*/i, '')
     .replace(/\s*```\s*$/, '')

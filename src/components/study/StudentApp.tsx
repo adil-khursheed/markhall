@@ -1,5 +1,6 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { AppShell } from './AppShell'
 import { Dashboard } from './Dashboard'
@@ -38,6 +39,7 @@ const STORAGE_KEY = 'markhall-seat-map-v2'
 const DEFAULT_PROFILE: StudentProfile = { board: 'all', grade: '10' }
 
 export function StudentApp({ user }: { user: { email: string; name: string } }) {
+  const router = useRouter()
   const [profile, setProfile] = useState<StudentProfile>(DEFAULT_PROFILE)
   const [subjects, setSubjects] = useState<Subject[]>(defaultSubjects)
   const [activeSession, setActiveSession] = useState<Session | null>(null)
@@ -265,6 +267,7 @@ export function StudentApp({ user }: { user: { email: string; name: string } }) 
       coveragePercent={coverage.percent}
       grade={profile.grade}
       onDashboard={goDashboard}
+      onDoubts={() => router.push('/tutor')}
       onPractice={openPractice}
       sessionActive={Boolean(activeSession)}
       user={user}

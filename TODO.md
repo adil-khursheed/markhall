@@ -198,7 +198,7 @@ Execution plan derived from `Markhall — Architecture & Implementation Blueprin
 
 - Implemented: `src/jobs/ingestDocument.ts`, `src/jobs/embedContent.ts`, `src/lib/ingest/` (`extract`, `segment`, `classify`, `verify`, `persist`, `embed`, `queue`, `store`, `text`), source-document and content `afterChange`/`afterDelete` hooks, admin count fields, re-ingest queueing, and `content_embeddings` in `src/migrations/20261109_155220_phase2_ingestion.ts`.
 - Verified: `pnpm typecheck`, `pnpm lint` (warnings only), `pnpm test:int` (18 tests pass), `pnpm build`, and the Phase 2 migration on a fresh `markhall_migrate_test` database. The fixture-PDF test covers text extraction, re-extraction without duplicate pages, and `contentHash` upserts.
-- Risks: no live model or embedding call was made because the OpenRouter account has no credits, so the full workflow is unproven end to end. The sandbox is still the Phase 4 placeholder, so numeric verification records `unavailable` and does not fail ingestion. Broken-math detection is a text-layer heuristic. The vector column is fixed at 1024 dimensions in the migration. Admin lists show status and counts after a refresh, not by live polling.
+- Risks: no live model or embedding call was made because the OpenRouter account has no credits, so the full workflow is unproven end to end. Phase 4 now provides a real sandbox; numeric verification was not exercised end to end because no model key was available. Broken-math detection is a text-layer heuristic. The vector column is fixed at 1024 dimensions in the migration. Admin lists show status and counts after a refresh, not by live polling.
 - Not verified: a real PDF through extract, segment, classify, verify, persist and embed; the failed-job/re-ingest path; embedding dimension mismatches against the configured provider.
 
 **Exit criteria**
@@ -260,39 +260,51 @@ Execution plan derived from `Markhall — Architecture & Implementation Blueprin
 
 **Tasks**
 
-- [ ] Build the sandbox service (FastAPI or equivalent) with a single `runPython` endpoint.
-- [ ] Container hardening:
-  - [ ] No network.
-  - [ ] Read-only filesystem.
-  - [ ] Non-root user.
-  - [ ] CPU, memory and process limits.
-  - [ ] 10-second default timeout, configurable per request.
-  - [ ] Small worker pool with a bounded queue.
-- [ ] Define the JSON protocol:
-  - [ ] Input: script and timeout.
-  - [ ] Output: `{ ok, stdout, stderr, exitCode }`.
-  - [ ] Solver convention: print one JSON object of named values, each with `latex` and `num`.
-- [ ] Install and pin SymPy; add common helpers for algebra, equations, calculus, geometry and numerical checks.
-- [ ] Normalise inputs before solving:
-  - [ ] Devanagari digits to ASCII.
-  - [ ] Lakh/crore separators to plain integers.
-- [ ] Add board-rule preamble support: pi convention, rounding, marking conventions.
-- [ ] Add per-user rate limits and queue-depth protection (Redis or the service itself).
-- [ ] Add tests:
-  - [ ] Arithmetic and algebra.
-  - [ ] Equation roots and uniqueness.
-  - [ ] Numerical tolerance checks.
-  - [ ] Timeout, memory and process-limit cases.
-  - [ ] Malformed output and non-JSON stdout.
-  - [ ] Attempted network or filesystem access.
-- [ ] Document the sandbox API and failure semantics for agent nodes.
+- [x] Build the sandbox service (FastAPI or equivalent) with a single `runPython` endpoint.
+- [x] Container hardening:
+  - [x] No network.
+  - [x] Read-only filesystem.
+  - [x] Non-root user.
+  - [x] CPU, memory and process limits.
+  - [x] 10-second default timeout, configurable per request.
+  - [x] Small worker pool with a bounded queue.
+- [x] Define the JSON protocol:
+  - [x] Input: script and timeout.
+  - [x] Output: `{ ok, stdout, stderr, exitCode }`.
+  - [x] Solver convention: print one JSON object of named values, each with `latex` and `num`.
+- [x] Install and pin SymPy; add common helpers for algebra, equations, calculus, geometry and numerical checks.
+- [x] Normalise inputs before solving:
+  - [x] Devanagari digits to ASCII.
+  - [x] Lakh/crore separators to plain integers.
+- [x] Add board-rule preamble support: pi convention, rounding, marking conventions.
+- [x] Add per-user rate limits and queue-depth protection (Redis or the service itself).
+- [x] Add tests:
+  - [x] Arithmetic and algebra.
+  - [x] Equation roots and uniqueness.
+  - [x] Numerical tolerance checks.
+  - [x] Timeout, memory and process-limit cases.
+  - [x] Malformed output and non-JSON stdout.
+  - [x] Attempted network or filesystem access.
+- [x] Document the sandbox API and failure semantics for agent nodes.
+
+**Phase 4 notes**
+
+- Implemented: `sandbox/app.py` (stdlib HTTP service, `GET /health`, `POST /runPython`), `sandbox/runner.py`, `sandbox/helpers.py`, `sandbox/requirements.txt` (`sympy==1.13.3`), `sandbox/test_app.py`, `docs/sandbox.md`, and a `sandbox` CI job.
+- Protocol: request `{ script, timeout (seconds), user?, rules? }`; response `{ ok, stdout, stderr, exitCode, timedOut, values, error }`. `values` is the parsed solver JSON or `null`; callers must treat `ok: true` with `values: null` as bad output.
+- Isolation: each script runs in its own `python -E -s` subprocess with `RLIMIT_AS` (192 MB), `RLIMIT_CPU`, `RLIMIT_FSIZE=0`, `RLIMIT_NPROC=8`, `RLIMIT_NOFILE=32`, empty env, cwd `/tmp`, and a killed process group on timeout. Container keeps no network (`sandboxnet` internal), read-only root, 64 MB `/tmp` tmpfs, non-root user, `pids_limit: 64`, `mem_limit: 512m`, `cpus: 1.0`.
+- Queue: 2 workers, 8-slot queue, fast `429` when full; in-memory rate limit of 60 requests/minute per `user` key.
+- Helpers: `normalize`, `answer`, `num`, `latex_of`, `roots_of`, `round_to`, `approx`, `distance`, SymPy public names and `sympy.geometry`; `rules.pi` and `rules.rounding` expose `PI` and `ROUNDING`.
+- Verified: built and ran the sandbox image; 15 sandbox tests pass (algebra/roots/tolerance, normalisation, rules, timeout, memory, filesystem, network, malformed output, rate limit, queue). Live Compose probe returned correct `9\pi` with `num`; a 20-request burst produced 10 `200` and 10 `429` with no crashes. `pnpm typecheck` and `pnpm lint` (warnings only) pass.
+- `src/lib/ingest/verify.ts` now sends seconds (not milliseconds) and a per-document `user` key, so Phase 2 numeric verification reaches the real sandbox.
+- Shortcut: each request is a cold Python + SymPy process (~1–3 s); add a preloaded/forked runner only if tutor latency demands it.
+- Risks: rate limits are per sandbox instance (no Redis, since the sandbox network cannot reach it); `preexec_fn` runs in a forked child of a threaded server; `values: null` with `ok: true` must be handled by Phase 5 nodes. Not load-tested on production hardware.
 
 **Exit criteria**
 
-- Exact values round-trip with both LaTeX and numeric forms.
-- Timeout and resource abuse are contained and reported as structured failures.
-- The sandbox cannot reach the network or write to disk.
-- Load test stays within the configured worker pool and queue.
+- [x] Exact values round-trip with both LaTeX and numeric forms.
+- [x] Timeout and resource abuse are contained and reported as structured failures.
+- [x] The sandbox cannot reach the network or write to disk.
+- [x] Load test stays within the configured worker pool and queue.
 
 ---
 
@@ -302,44 +314,56 @@ Execution plan derived from `Markhall — Architecture & Implementation Blueprin
 
 **Tasks**
 
-- [ ] Add LangGraph dependencies and the Postgres checkpointer.
-- [ ] Define `TutorState`: messages, student profile, mode, request, context, computation, draft, validation, questions.
-- [ ] Implement tools:
-  - [ ] `retrieveContext` with server-injected filters.
-  - [ ] `runPython` calling the sandbox.
-  - [ ] `validateLatex` using KaTeX with `throwOnError: true`.
-  - [ ] `saveQuestionDraft` for generated items.
-- [ ] Implement nodes:
-  - [ ] `guard`: scope and prompt-injection screening.
-  - [ ] `route`: intent detection, embedding, nearest syllabus chunks, subject/chapter inference; clarify on low similarity or ties.
-  - [ ] `retrieve`: syllabus constraints, similar PYQs, weak chapters.
-  - [ ] `solve`: plan and SymPy script; proofs check each algebraic identity.
-  - [ ] `run_python`: parse JSON; retry `solve` up to 3 attempts.
-  - [ ] `explain`: step-by-step answer in the student's language with `<<v:key>>` placeholders.
-  - [ ] `explain_unverified`: method-only answer, explicit unverified warning, flag thread.
-  - [ ] `validate_format`: substitute placeholders, check KaTeX and structure, reject leftovers.
-  - [ ] `repair_format`: fix the exact reported error, up to 2 attempts, then plain-text fallback.
-  - [ ] `clarify` and `refuse`.
-- [ ] Implement deterministic placeholder substitution and strict validation for unknown or leftover keys.
-- [ ] Enforce prompt-injection rules:
-  - [ ] Retrieved text is quoted data.
-  - [ ] Tools never accept filters or code chosen from retrieved text.
-  - [ ] Transcripts and PDF text pass through `guard`.
-- [ ] Wire the graph with the exact routing from the blueprint.
-- [ ] Persist checkpoints with `thread_id` equal to the `doubt-threads` id; verify pause and resume.
-- [ ] Persist final messages only after `validate_format` succeeds.
-- [ ] Add "report wrong answer" handling that flags the thread or creates an admin review item.
-- [ ] Build a golden-doubt set (start with a representative subset, grow toward about 200 per subject) with known answers.
-- [ ] Add CI evaluation for the golden set on every prompt or model change.
+- [x] Add LangGraph dependencies and the Postgres checkpointer.
+- [x] Define `TutorState`: messages, student profile, mode, request, context, computation, draft, validation, questions.
+- [x] Implement tools:
+  - [x] `retrieveContext` with server-injected filters.
+  - [x] `runPython` calling the sandbox.
+  - [x] `validateLatex` using KaTeX with `throwOnError: true`.
+  - [ ] `saveQuestionDraft` for generated items. (Deferred to Phase 8, where generation first calls it.)
+- [x] Implement nodes:
+  - [x] `guard`: scope and prompt-injection screening.
+  - [x] `route`: intent detection, embedding, nearest syllabus chunks, subject/chapter inference; clarify on low similarity or ties.
+  - [x] `retrieve`: syllabus constraints, similar PYQs, weak chapters.
+  - [x] `solve`: plan and SymPy script; proofs check each algebraic identity.
+  - [x] `run_python`: parse JSON; retry `solve` up to 3 attempts.
+  - [x] `explain`: step-by-step answer in the student's language with `<<v:key>>` placeholders.
+  - [x] `explain_unverified`: method-only answer, explicit unverified warning, flag thread.
+  - [x] `validate_format`: substitute placeholders, check KaTeX and structure, reject leftovers.
+  - [x] `repair_format`: fix the exact reported error, up to 2 attempts, then plain-text fallback.
+  - [x] `clarify` and `refuse`: terminal modes set by `guard` and `route`.
+- [x] Implement deterministic placeholder substitution and strict validation for unknown or leftover keys.
+- [x] Enforce prompt-injection rules:
+  - [x] Retrieved text is quoted data.
+  - [x] Tools never accept filters or code chosen from retrieved text.
+  - [x] Transcripts and PDF text pass through `guard`.
+- [x] Wire the graph with the exact routing from the blueprint. (Generation branch is refused until Phase 8; image stages land in Phase 7.)
+- [x] Persist checkpoints with `thread_id` equal to the `doubt-threads` id; verify pause and resume.
+- [x] Persist final messages only after `validate_format` succeeds.
+- [x] Add "report wrong answer" handling that flags the thread or creates an admin review item.
+- [x] Build a golden-doubt set (10 representative cases across arithmetic, algebra, geometry and calculus) with known answers.
+- [x] Add CI evaluation for the golden set on every prompt or model change.
+
+**Phase 5 notes**
+
+- Implemented: `src/lib/agent/state.ts`, `graph.ts`, `placeholders.ts`, `latex.ts`, `sandbox.ts`, `checkpointer.ts`, `index.ts`, `golden.ts`, `scripts/eval-golden.ts`, `tests/int/agent.int.spec.ts` and `tests/int/agent-format.int.spec.ts`.
+- Graph: `guard -> route -> retrieve -> solve -> run_python -> explain | explain_unverified -> validate_format -> repair_format (max 2)`. `guard` and `route` terminate on refuse or clarify. Requests with a chapter id skip vector routing and use the chapter filter.
+- Numbers: the solver only emits a SymPy script; `answer(...)` produces `{latex, num}` values. The explainer gets value keys, never numbers, and writes `<<v:key>>`. Substitution is deterministic; unknown or leftover keys, invalid KaTeX, missing numbered steps and unbalanced `$` fail validation.
+- Persistence: `PostgresSaver` uses the same database and `thread_id = doubt-threads.id`. Terminal answers are appended to the thread only when formatting passed or the reply is a clarify/refuse message. `reportWrongAnswer` flags the thread.
+- Verified: `pnpm typecheck`, `pnpm lint` (warnings only), `pnpm build`, and `pnpm test:int` (39 tests, including 7 graph tests and 8 format tests). Graph tests cover computed substitution, resume with a second turn, unverified flagging after 3 solve attempts, low-similarity clarification, prompt-injection refusal, generation refusal and wrong-answer flagging.
+- Verified live: `pnpm eval:golden` passed 10/10 against the real OpenRouter models and the Docker sandbox. The first run failed with HTTP 402 because `maxTokens` defaulted to the provider maximum; `getModel` now caps output at 4096 tokens, which fits the remaining key limit.
+- Retrieval is mocked in graph tests and the golden fixtures pass a chapter id, so no representative corpus has exercised vector routing yet.
+- Shortcut: similarity threshold (0.3) and tie margin (0.02) are fixed constants; tune them on the golden set and real corpus.
+- Risks: checkpointer tables are created by `setup()` at runtime rather than a Payload migration. The generation branch is refused until Phase 8. Rate limiting, per-role token caps and tracing remain Phase 11. `explain_unverified` deliberately gives no final number.
 
 **Exit criteria**
 
-- A text doubt returns a correct, step-by-step answer with all numeric values substituted from sandbox output.
-- No leftover placeholders or invalid LaTeX reach the response.
-- Out-of-scope input is refused; ambiguous input asks for clarification.
-- Failed computation produces `explain_unverified` and an admin flag, not a confident wrong answer.
-- A dropped session can resume from its thread.
-- Golden-set evaluation runs in CI with a recorded pass rate.
+- [x] A text doubt returns a step-by-step answer with all numeric values substituted from sandbox output. (Verified with mocks and by the 10/10 golden run.)
+- [x] No leftover placeholders or invalid LaTeX reach the response.
+- [x] Out-of-scope input is refused; ambiguous input asks for clarification.
+- [x] Failed computation produces `explain_unverified` and an admin flag, not a confident wrong answer.
+- [x] A dropped session can resume from its thread.
+- [~] Golden-set evaluation runs in CI with a recorded pass rate. (10/10 locally; the CI job is wired with the sandbox behind a loopback proxy but has not run on GitHub yet.)
 
 ---
 
@@ -349,40 +373,47 @@ Execution plan derived from `Markhall — Architecture & Implementation Blueprin
 
 **Tasks**
 
-- [ ] Add an SSE route handler with `runtime = 'nodejs'` and `dynamic = 'force-dynamic'`.
-- [ ] Stream LangGraph `streamEvents` as `status`, `block`, `done` and `error` events.
-- [ ] Send a heartbeat comment every 15 seconds.
-- [ ] Set `X-Accel-Buffering: no` and document `proxy_buffering off` on the reverse proxy.
-- [ ] Implement `createBlockAssembler`:
-  - [ ] Cut on blank lines.
-  - [ ] Do not cut while display or inline math is open.
-  - [ ] Flush the tail at the end.
-- [ ] Normalise `\(...\)` and `\[...\]` to `$...$` and `$$...$$`.
-- [ ] Substitute placeholders before block validation.
-- [ ] Validate each block with KaTeX; send only complete blocks.
-- [ ] Route a bad block through `repair_format` alone so the rest of the answer is untouched.
-- [ ] Browser rendering:
-  - [ ] `react-markdown` with `remark-math` and `rehype-katex`.
-  - [ ] One memoised component per finished block.
-  - [ ] KaTeX CSS loaded once.
-- [ ] Show in-progress text as plain shimmering text, not partial math.
-- [ ] Reconnect using the SSE block index and the checkpointed thread.
-- [ ] Ensure the final stored message equals the full text the student saw.
-- [ ] Build the chat UI inside the Markhall design system:
-  - [ ] Thread history and resume.
-  - [ ] Input, send, stop.
-  - [ ] Upload affordance placeholder for Phase 7.
-  - [ ] Error and retry states.
-  - [ ] Report wrong answer.
-  - [ ] Mobile layout.
-- [ ] Add tests for block assembly, open-math handling, reconnection and final-message equality.
+- [x] Add an SSE route handler with `runtime = 'nodejs'` and `dynamic = 'force-dynamic'`.
+- [x] Stream LangGraph `streamEvents` as `status`, `block`, `done` and `error` events.
+- [x] Send a heartbeat comment every 15 seconds.
+- [x] Set `X-Accel-Buffering: no` and document `proxy_buffering off` on the reverse proxy.
+- [x] Implement `createBlockAssembler`:
+  - [x] Cut on blank lines.
+  - [x] Do not cut while display or inline math is open.
+  - [x] Flush the tail at the end.
+- [x] Normalise `\(...\)` and `\[...\]` to `$...$` and `$$...$$`.
+- [x] Substitute placeholders before block validation.
+- [x] Validate each block with KaTeX; send only complete blocks.
+- [x] Route a bad block through `repair_format` alone so the rest of the answer is untouched.
+- [x] Browser rendering:
+  - [x] `react-markdown` with `remark-math` and `rehype-katex`.
+  - [x] One memoised component per finished block.
+  - [x] KaTeX CSS loaded once.
+- [x] Show in-progress text as plain shimmering text, not partial math.
+- [x] Reconnect using the SSE block index and the checkpointed thread.
+- [x] Ensure the final stored message equals the full text the student saw.
+- [x] Build the chat UI inside the Markhall design system:
+  - [x] Thread history and resume.
+  - [x] Input, send, stop.
+  - [x] Upload affordance placeholder for Phase 7.
+  - [x] Error and retry states.
+  - [x] Report wrong answer.
+  - [x] Mobile layout.
+- [x] Add tests for block assembly, open-math handling, reconnection and final-message equality.
 
 **Exit criteria**
 
-- No half-rendered formula appears during streaming.
-- A dropped connection resumes without duplicating blocks.
-- The stored thread matches the rendered answer.
-- Chat is usable on mobile and keyboard-only.
+- [~] No half-rendered formula appears during streaming. *(Verified by unit tests on the assembler/validator, not yet against a live stream.)*
+- [~] A dropped connection resumes without duplicating blocks. *(Replay logic covered by `replayEvents` tests; no live drop/reconnect run yet.)*
+- [~] The stored thread matches the rendered answer. *(`doneContent` prefers the checkpointed draft; equality tested in `tests/unit/blocks.unit.spec.ts`, not yet end-to-end.)*
+- [~] Chat is usable on mobile and keyboard-only. *(Built per DESIGN.md with a 760px breakpoint, focus-visible styles and labelled controls; not yet exercised in a real browser.)*
+
+**Phase 6 notes** (2026-11-12)
+
+- Implemented files: `src/lib/agent/blocks.ts` (assembler + `validateBlock` + `mathOpen`), `src/lib/agent/turn.ts` (turn registry, `replayEvents`, `cancelTurn`, per-block repair), `src/app/api/tutor/route.ts` (SSE + reconnect + `DELETE` cancel), `src/components/tutor/TutorDesk.tsx`, `src/components/tutor/Block.tsx`, `src/app/(frontend)/tutor/page.tsx`, doubts nav in `src/components/study/AppShell.tsx` / `StudentApp.tsx`, tutor styles in `globals.css`.
+- Verified: `pnpm typecheck` clean; scoped ESLint clean; `pnpm build` passes with `/tutor` and `/api/tutor` registered; 15 streaming tests pass in `tests/unit/blocks.unit.spec.ts` (block assembly, open-math handling, `validateBlock`, reconnection replay, final-message equality). The impeccable detector reports no findings.
+- Not verified: no live end-to-end streaming run yet — Docker/Postgres was not available in this session, so the page, SSE flow, reconnect-after-drop and mobile rendering have not been exercised in a real browser. DB-dependent integration suites (Phase 1–5) also stay skipped until Postgres is up.
+- Shortcuts/risks: reconnect replays from the in-memory turn registry and falls back to the stored answer when the turn is gone; a server restart mid-turn still loses the in-flight stream (only the checkpointed draft survives). Upload stays a "Soon" placeholder until Phase 7.
 
 ---
 

@@ -7,11 +7,12 @@ import { Wordmark } from '@/components/brand/Wordmark'
 
 type AppShellProps = {
   children: ReactNode
-  active: 'dashboard' | 'practice' | 'mock' | 'library'
+  active: 'dashboard' | 'practice' | 'mock' | 'library' | 'doubts'
   onDashboard: () => void
   onPractice: () => void
+  onDoubts?: () => void
   board: string
-  coveragePercent: number
+  coveragePercent?: number
   grade: string
   sessionActive: boolean
   user: { email: string; name: string }
@@ -22,6 +23,7 @@ export function AppShell({
   active,
   onDashboard,
   onPractice,
+  onDoubts,
   board,
   coveragePercent,
   grade,
@@ -44,11 +46,13 @@ export function AppShell({
           <span className="coverage">
             <span className="coverage-label">Syllabus coverage</span>
             <span className="coverage-label-short">Coverage</span>
-            <span className="coverage-value">{coveragePercent}%</span>
+            <span className="coverage-value">
+              {coveragePercent === undefined ? '—' : `${coveragePercent}%`}
+            </span>
           </span>
         </div>
         <div className="topbar-actions">
-          <span className="sample-chip">Sample data</span>
+          {active !== 'doubts' && <span className="sample-chip">Sample data</span>}
           <span className="student-mark" aria-label={`Signed in as ${user.name}`} title={user.name}>
             {initial}
           </span>
@@ -79,6 +83,21 @@ export function AppShell({
             Practice
             {sessionActive && <span className="nav-live" aria-label="session in progress" />}
           </button>
+          {onDoubts ? (
+            <button
+              aria-current={active === 'doubts' ? 'page' : undefined}
+              className={`nav-item${active === 'doubts' ? ' is-active' : ''}`}
+              onClick={onDoubts}
+              type="button"
+            >
+              Ask a doubt
+            </button>
+          ) : (
+            <span className="nav-item is-disabled" aria-disabled="true">
+              Ask a doubt
+              <span className="nav-soon">Soon</span>
+            </span>
+          )}
           <span className="nav-item is-disabled" aria-disabled="true">
             Mock tests
             <span className="nav-soon">Soon</span>
@@ -116,11 +135,22 @@ export function AppShell({
           Practice
           {sessionActive && <span className="nav-live" aria-label="session in progress" />}
         </button>
+        {onDoubts ? (
+          <button
+            aria-current={active === 'doubts' ? 'page' : undefined}
+            className={`bottom-item${active === 'doubts' ? ' is-active' : ''}`}
+            onClick={onDoubts}
+            type="button"
+          >
+            Ask a doubt
+          </button>
+        ) : (
+          <span className="bottom-item is-disabled" aria-disabled="true">
+            Ask a doubt · Soon
+          </span>
+        )}
         <span className="bottom-item is-disabled" aria-disabled="true">
           Mock tests · Soon
-        </span>
-        <span className="bottom-item is-disabled" aria-disabled="true">
-          Question bank · Soon
         </span>
       </nav>
     </div>
