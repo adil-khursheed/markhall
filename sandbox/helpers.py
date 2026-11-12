@@ -66,6 +66,18 @@ def approx(a, b, tolerance=1e-9):
     return abs(left - right) <= tolerance
 
 
+def equiv(a, b):
+    """True when two expressions are algebraically equivalent (compare_work)."""
+    if a == b:
+        return True
+    try:
+        if simplify(together(a - b)) == 0:
+            return True
+    except Exception:
+        pass
+    return approx(a, b)
+
+
 def distance(point_a, point_b):
     return Point(point_a).distance(Point(point_b))
 

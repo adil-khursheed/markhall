@@ -66,6 +66,7 @@ Every script runs with SymPy's public names plus:
 | `roots_of(expr, symbol)` | unique exact roots, sorted |
 | `round_to(value, digits=None)` | round with the board convention |
 | `approx(a, b, tolerance=1e-9)` | numeric tolerance check |
+| `equiv(a, b)` | algebraic equivalence used by compare_work |
 | `distance(point_a, point_b)` | Euclidean distance |
 | `PI` | `sympy.pi`, or the `rules.pi` convention |
 | `ROUNDING` | the `rules.rounding` digit count |

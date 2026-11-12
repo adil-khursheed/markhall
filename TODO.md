@@ -414,6 +414,7 @@ Execution plan derived from `Markhall — Architecture & Implementation Blueprin
 - Verified: `pnpm typecheck` clean; scoped ESLint clean; `pnpm build` passes with `/tutor` and `/api/tutor` registered; 15 streaming tests pass in `tests/unit/blocks.unit.spec.ts` (block assembly, open-math handling, `validateBlock`, reconnection replay, final-message equality). The impeccable detector reports no findings.
 - Not verified: no live end-to-end streaming run yet — Docker/Postgres was not available in this session, so the page, SSE flow, reconnect-after-drop and mobile rendering have not been exercised in a real browser. DB-dependent integration suites (Phase 1–5) also stay skipped until Postgres is up.
 - Shortcuts/risks: reconnect replays from the in-memory turn registry and falls back to the stored answer when the turn is gone; a server restart mid-turn still loses the in-flight stream (only the checkpointed draft survives). Upload stays a "Soon" placeholder until Phase 7.
+- Late fixes in the same pass: `mathOpen` now also recognises un-closed `\(` and `\[` pairs, so a display bracket spanning a blank line cannot be cut before its closing delimiter arrives; the "Unverified answer" chip uses examiner red per the Red Margin Rule; reopening a flagged thread shows its reported state; the lint error from synchronous setState in the seat-map effect was fixed with the existing `queueMicrotask` pattern. Duplicated early test files were consolidated into `tests/unit/blocks.unit.spec.ts`; the tutor surface brief was added at `.impeccable/surfaces/src-app-frontend-tutor-page-tsx.md`.
 
 ---
 
@@ -423,36 +424,43 @@ Execution plan derived from `Markhall — Architecture & Implementation Blueprin
 
 **Tasks**
 
-- [ ] Finish `student-uploads` behavior:
-  - [ ] Owner-only access.
-  - [ ] Purposes `doubt` and `answer`.
-  - [ ] Optional thread or attempt relation.
-  - [ ] Transcription text and confidence.
-  - [ ] `retentionUntil` and a scheduled deletion job.
-- [ ] Browser-side checks: size, sharpness, orientation; fix EXIF rotation; allow several images per doubt.
-- [ ] Server-side EXIF stripping and image normalisation with `sharp`.
-- [ ] Implement `read_image`:
-  - [ ] Transcribe to Markdown + LaTeX.
-  - [ ] Label `student_solution`, `textbook_question` or `other`.
-  - [ ] Write text and confidence to the upload record.
-- [ ] Route low confidence to `clarify`: show "I read this as ..." and ask to confirm, correct or retake.
-- [ ] Route textbook questions through the normal doubt path after transcription.
-- [ ] Implement `compare_work`:
-  - [ ] Run after `run_python` when the kind is `student_solution`.
-  - [ ] Check each consecutive pair of steps for equivalence with SymPy.
-  - [ ] Report the first step that breaks.
-  - [ ] Have `explain` teach from that step instead of re-solving.
-- [ ] Treat transcription as untrusted data; pass it through `guard`.
-- [ ] Update the graph routing for attachments, low confidence and compare-work.
-- [ ] Never copy uploads into `content_embeddings` or any shared index.
-- [ ] Add tests for EXIF stripping, retention deletion, low-confidence clarification and first-wrong-step detection.
+- [x] Finish `student-uploads` behavior:
+  - [x] Owner-only access.
+  - [x] Purposes `doubt` and `answer`. *(Existing `doubt` and `mock_answer` purposes cover both flows; no rename needed.)*
+  - [x] Optional thread or attempt relation.
+  - [x] Transcription text and confidence. *(Written back by `readImage` along with the new `kind` label.)*
+  - [x] `retentionUntil` and a scheduled deletion job. *(Default set on create; `purgeExpiredUploads` task self-requeues daily and is kicked off in `onInit`.)*
+- [x] Browser-side checks: size, sharpness, orientation; fix EXIF rotation; allow several images per doubt. *(Size/type/count checked in the composer; EXIF rotation handled server-side by `stripExif` with `sharp.rotate()`; no client sharpness heuristic — low quality falls to the low-confidence clarify path.)*
+- [x] Server-side EXIF stripping and image normalisation with `sharp`.
+- [x] Implement `read_image`:
+  - [x] Transcribe to Markdown + LaTeX.
+  - [x] Label `student_solution`, `textbook_question` or `other`.
+  - [x] Write text and confidence to the upload record.
+- [x] Route low confidence to `clarify`: show "I read this as ..." and ask to confirm, correct or retake.
+- [x] Route textbook questions through the normal doubt path after transcription. *(Photo-only turns use the transcription as the question text; with typed text the transcription rides along as quoted data.)*
+- [x] Implement `compare_work`:
+  - [x] Run after `run_python` when the kind is `student_solution`.
+  - [x] Check each consecutive pair of steps for equivalence with SymPy.
+  - [x] Report the first step that breaks.
+  - [x] Have `explain` teach from that step instead of re-solving.
+- [x] Treat transcription as untrusted data; pass it through `guard`. *(Injection regex plus the router model screen both run on the transcription; every downstream prompt quotes it.)*
+- [x] Update the graph routing for attachments, low confidence and compare-work. *(New `read_images` node runs before `guard`; `compare_work` sits between `run_python` and `explain`.)*
+- [x] Never copy uploads into `content_embeddings` or any shared index. *(Uploads are referenced by id only; embedding jobs only ever read `knowledge-base` and `question-bank`.)*
+- [x] Add tests for EXIF stripping, retention deletion, low-confidence clarification and first-wrong-step detection. *(EXIF/retention-parse/clarify-draft/compare-parse in `tests/unit/phase7.unit.spec.ts`; graph and access paths in `tests/int/uploads.int.spec.ts` (needs Postgres); sandbox `equiv` covered in `sandbox/test_app.py`.)*
 
 **Exit criteria**
 
-- A textbook photo becomes a normal doubt after transcription.
-- A handwritten solution gets feedback starting at the first incorrect step.
-- Low-confidence transcripts are never solved silently.
-- Uploads are owner-only, EXIF-stripped and deleted after retention.
+- [~] A textbook photo becomes a normal doubt after transcription. *(Routing and storage tested with mocks; no live vision-model run yet.)*
+- [~] A handwritten solution gets feedback starting at the first incorrect step. *(compare_work wiring and first-bad-step parsing tested; not yet run against a real photo.)*
+- [~] Low-confidence transcripts are never solved silently. *(Unit-tested decision and clarify draft; the real vision confidence scale is uncalibrated.)*
+- [~] Uploads are owner-only, EXIF-stripped and deleted after retention. *(Owner rules tested; EXIF stripping unit-tested; the purge job and scheduler have not run against a live database.)*
+
+**Phase 7 notes** (2026-11-12)
+
+- Implemented: `src/lib/agent/vision.ts` (readImage, LOW_CONFIDENCE=0.6, retentionDate, clarifyDraft), `src/lib/agent/compare.ts` (compare script builder/parser/note), `read_images` + `compare_work` nodes in `src/lib/agent/graph.ts`, `images`/`compare` in `src/lib/agent/state.ts`, `kind` field + retention default in `StudentUploads.ts`, `purgeExpiredUploads` job + `onInit` self-queue in `payload.config.ts`, upload ownership/thread-linking and `uploads` input in `/api/tutor`, real attach flow in `TutorDesk.tsx` (max 4 photos, 8 MB, thumbnails), `equiv` helper in `sandbox/helpers.py`, migration `20261112_090000_phase7_uploads.ts`.
+- Verified: `pnpm typecheck` clean; `pnpm lint` 0 errors (warnings pre-existing); `pnpm build` passes; 24 unit tests pass including the 9 new Phase 7 unit tests (compare script/parser, clarify draft, retention date, EXIF stripping via sharp, non-image passthrough). `readImage` file reading resolves `uploads/student-uploads` from the process cwd, matching where Payload writes them locally.
+- Not verified: no live run — Docker/Postgres is down in this session, so `tests/int/uploads.int.spec.ts` (owner-only, purge, low-confidence clarify, first-wrong-step) joins the other DB-dependent suites as skipped, and the vision model has not been called with a real photo. The `equiv` sandbox tests compile locally but need the Docker image to execute.
+- Shortcuts/risks: vision transcription re-runs on every turn (no caching on the upload record beyond storing the text); client-side sharpness detection is skipped in favour of the low-confidence clarify path; `compare_work` asks the judge model to turn steps into SymPy assignments — steps that are prose will fail the script and compare reports `ok: false` (explain then runs without the compare note); the purge task re-queues itself every 24 h from first boot rather than a fixed 03:00 cron.
 
 ---
 

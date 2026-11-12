@@ -52,6 +52,35 @@ class MathTests(unittest.TestCase):
         self.assertEqual(boarded["stdout"].split(), ["22/7", "3"])
 
 
+class CompareWorkTests(unittest.TestCase):
+    def test_equiv_detects_first_broken_step(self):
+        result = run(
+            "s1 = x + 1\n"
+            "s2 = x + 2 - 1\n"
+            "s3 = x + 2\n"
+            "s4 = 2 * x\n"
+            "bad = -1\n"
+            "if bad < 0 and not equiv(s1, s2): bad = 2\n"
+            "if bad < 0 and not equiv(s2, s3): bad = 3\n"
+            "if bad < 0 and not equiv(s3, s4): bad = 4\n"
+            "answer(first_bad=bad)"
+        )
+        self.assertTrue(result["ok"], result["stderr"])
+        self.assertEqual(result["values"]["first_bad"]["num"], 4.0)
+
+    def test_equiv_accepts_equivalent_chains(self):
+        result = run(
+            "x = symbols('x')\n"
+            "s1 = x ** 2 - 1\n"
+            "s2 = (x - 1) * (x + 1)\n"
+            "bad = -1\n"
+            "if bad < 0 and not equiv(s1, s2): bad = 2\n"
+            "answer(first_bad=bad)"
+        )
+        self.assertTrue(result["ok"], result["stderr"])
+        self.assertEqual(result["values"]["first_bad"]["num"], -1.0)
+
+
 class IsolationTests(unittest.TestCase):
     def test_timeout_is_killed_and_reported(self):
         result = run("import time\ntime.sleep(3)", timeout=0.5)

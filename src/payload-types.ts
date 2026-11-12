@@ -123,6 +123,7 @@ export interface Config {
   jobs: {
     tasks: {
       embedContent: TaskEmbedContent;
+      purgeExpiredUploads: TaskPurgeExpiredUploads;
       inline: {
         input: unknown;
         output: unknown;
@@ -469,6 +470,10 @@ export interface StudentUpload {
   id: number;
   owner: number | User;
   purpose: 'doubt' | 'mock_answer' | 'profile';
+  /**
+   * Filled by the vision transcription (Phase 7).
+   */
+  kind?: ('student_solution' | 'textbook_question' | 'other') | null;
   thread?: (number | null) | DoubtThread;
   attempt?: (number | null) | MockAttempt;
   transcription?: string | null;
@@ -555,7 +560,7 @@ export interface PayloadJob {
     | {
         executedAt: string;
         completedAt: string;
-        taskSlug: 'inline' | 'embedContent';
+        taskSlug: 'inline' | 'embedContent' | 'purgeExpiredUploads';
         taskID: string;
         input?:
           | {
@@ -589,7 +594,7 @@ export interface PayloadJob {
       }[]
     | null;
   workflowSlug?: 'ingestDocument' | null;
-  taskSlug?: ('inline' | 'embedContent') | null;
+  taskSlug?: ('inline' | 'embedContent' | 'purgeExpiredUploads') | null;
   queue?: string | null;
   waitUntil?: string | null;
   processing?: boolean | null;
@@ -976,6 +981,7 @@ export interface MockAttemptsSelect<T extends boolean = true> {
 export interface StudentUploadsSelect<T extends boolean = true> {
   owner?: T;
   purpose?: T;
+  kind?: T;
   thread?: T;
   attempt?: T;
   transcription?: T;
@@ -1084,6 +1090,14 @@ export interface TaskEmbedContent {
     sourceType: 'knowledge' | 'question';
     sourceId: number;
   };
+  output?: unknown;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskPurgeExpiredUploads".
+ */
+export interface TaskPurgeExpiredUploads {
+  input?: unknown;
   output?: unknown;
 }
 /**

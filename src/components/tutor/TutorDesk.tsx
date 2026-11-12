@@ -58,12 +58,15 @@ export function TutorDesk({ user, threads }: TutorDeskProps) {
   const [input, setInput] = useState('')
   const [reported, setReported] = useState(false)
   const [coverage, setCoverage] = useState<number | undefined>(undefined)
+  const [photos, setPhotos] = useState<{ id: number; url: string }[]>([])
+  const [uploading, setUploading] = useState(false)
 
   const controllerRef = useRef<AbortController | null>(null)
   const lastBlockRef = useRef(-1)
   const lastTextRef = useRef('')
   const idRef = useRef(0)
   const endRef = useRef<HTMLDivElement>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -198,17 +201,23 @@ export function TutorDesk({ user, threads }: TutorDeskProps) {
 
   const send = useCallback(async () => {
     const text = input.trim()
-    if (!text || sending) return
+    if ((!text && photos.length === 0) || sending || uploading) return
     lastTextRef.current = text
     setInput('')
+    const attached = photos
+    setPhotos([])
     setStatusLabel('Reading your doubt')
     setMessages((prev) => [
       ...prev,
-      { id: idRef.current++, role: 'user', text },
+      { id: idRef.current++, role: 'user', text: text || 'Please read the photo I attached.' },
       { id: idRef.current++, role: 'assistant', blocks: [], streaming: true },
     ])
-    await runStream({ text, ...(activeThreadId != null ? { threadId: activeThreadId } : {}) })
-  }, [activeThreadId, input, runStream, sending])
+    await runStream({
+      ...(text ? { text } : {}),
+      ...(attached.length ? { uploads: attached.map((photo) => photo.id) } : {}),
+      ...(activeThreadId != null ? { threadId: activeThreadId } : {}),
+    })
+  }, [activeThreadId, input, photos, runStream, sending, uploading])
 
   const stop = useCallback(() => {
     const controller = controllerRef.current
@@ -247,6 +256,7 @@ export function TutorDesk({ user, threads }: TutorDeskProps) {
     setActiveThreadId(null)
     setMessages([])
     setStreamError(null)
+    setPhotos([])
     setStatusLabel(null)
     setReported(false)
   }, [sending])
@@ -302,6 +312,45 @@ export function TutorDesk({ user, threads }: TutorDeskProps) {
       setStreamError('The report could not be sent. Try again.')
     }
   }, [activeThreadId, reported, sending])
+
+  const attach = useCallback(async (files: FileList | null) => {
+    if (!files?.length || uploading) return
+    setStreamError(null)
+    const picked = Array.from(files)
+      .filter((file) => ['image/jpeg', 'image/png', 'image/webp'].includes(file.type) && file.size <= 8 * 1024 * 1024)
+      .slice(0, 4)
+    if (!picked.length) {
+      setStreamError('Attach up to 4 JPG, PNG or WebP photos, 8 MB each.')
+      return
+    }
+    setUploading(true)
+    try {
+      const uploaded: { id: number; url: string }[] = []
+      for (const file of picked) {
+        const form = new FormData()
+        form.append('file', file)
+        form.append('purpose', 'doubt')
+        const response = await fetch('/api/student-uploads', { method: 'POST', body: form })
+        const data = (await response.json().catch(() => null)) as {
+          doc?: { id: number; url?: string }
+          id?: number
+          url?: string
+          errors?: unknown
+        } | null
+        if (!response.ok || !(data?.doc ?? data)?.id) {
+          throw new Error('That photo could not be uploaded. Try a smaller JPG or PNG.')
+        }
+        const doc = data?.doc ?? data
+        uploaded.push({ id: doc!.id!, url: doc!.url ?? '' })
+      }
+      setPhotos((prev) => [...prev, ...uploaded].slice(0, 4))
+    } catch (error) {
+      setStreamError(error instanceof Error ? error.message : 'The photo could not be uploaded.')
+    } finally {
+      setUploading(false)
+      if (fileRef.current) fileRef.current.value = ''
+    }
+  }, [uploading])
 
   const boardLabel = user.board ? (BOARD_LABELS[user.board] ?? 'All boards') : 'All boards'
   const threadFlagged = reported
@@ -410,6 +459,25 @@ export function TutorDesk({ user, threads }: TutorDeskProps) {
             </div>
           )}
 
+          {photos.length > 0 && (
+            <div className="composer-photos" aria-label="Attached photos">
+              {photos.map((photo) => (
+                <figure className="composer-photo" key={photo.id}>
+                  {photo.url ? <img alt="Attached exam photo" src={photo.url} /> : null}
+                  <button
+                    aria-label="Remove attached photo"
+                    className="composer-photo-remove"
+                    disabled={sending || uploading}
+                    onClick={() => setPhotos((prev) => prev.filter((item) => item.id !== photo.id))}
+                    type="button"
+                  >
+                    ×
+                  </button>
+                </figure>
+              ))}
+            </div>
+          )}
+
           <div ref={endRef} />
         </div>
 
@@ -423,7 +491,7 @@ export function TutorDesk({ user, threads }: TutorDeskProps) {
           <textarea
             aria-label="Your doubt"
             className="input composer-input"
-            disabled={sending}
+            disabled={sending || uploading}
             onChange={(event) => setInput(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === 'Enter' && !event.shiftKey) {
@@ -431,21 +499,35 @@ export function TutorDesk({ user, threads }: TutorDeskProps) {
                 void send()
               }
             }}
-            placeholder="Type your doubt — name the chapter if you can."
+            placeholder="Type your doubt, or attach a photo and say what to check."
             rows={3}
             value={input}
           />
           <div className="composer-actions">
-            <button className="button button-quiet" disabled type="button">
-              Attach photo
-              <span className="nav-soon">Soon</span>
+            <input
+              accept="image/jpeg,image/png,image/webp"
+              aria-hidden="true"
+              hidden
+              multiple
+              onChange={(event) => void attach(event.target.files)}
+              ref={fileRef}
+              type="file"
+            />
+            <button
+              className="button button-quiet"
+              disabled={sending || uploading || photos.length >= 4}
+              onClick={() => fileRef.current?.click()}
+              type="button"
+            >
+              {uploading ? 'Uploading…' : 'Attach photo'}
+              {photos.length > 0 && ` (${photos.length}/4)`}
             </button>
             {sending ? (
               <button className="button" onClick={stop} type="button">
                 Stop
               </button>
             ) : (
-              <button className="button button-primary" disabled={!input.trim()} type="submit">
+              <button className="button button-primary" disabled={(!input.trim() && photos.length === 0) || uploading} type="submit">
                 Send
               </button>
             )}

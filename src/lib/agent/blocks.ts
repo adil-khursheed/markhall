@@ -10,7 +10,7 @@ const CUT = '\n\n'
  * must not cut a block on a blank line inside it.
  */
 export function mathOpen(text: string): boolean {
-  let rest = text.replace(/\$\$[\s\S]*?\$\$/g, '').replace(/\\\[[\s\S]*?\\\]/g, '').replace(/\\\([\s\S]*?\\\)/g, '')
+  const rest = text.replace(/\$\$[\s\S]*?\$\$/g, '').replace(/\\\[[\s\S]*?\\\]/g, '').replace(/\\\([\s\S]*?\\\)/g, '')
   if ((rest.match(/(?<!\\)\$\$/g)?.length ?? 0) % 2 === 1) return true
   if (rest.includes('\\[') || rest.includes('\\(')) return true
   return ((rest.match(/(?<!\\)\$/g)?.length ?? 0) % 2 === 1)

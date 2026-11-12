@@ -38,11 +38,13 @@ export type Turn = {
 const MAX_TURNS = 200
 
 const STATUS_LABELS: Record<string, string> = {
+  read_images: 'Reading your photo',
   guard: 'Reading your doubt',
   route: 'Finding the chapter',
   retrieve: 'Gathering syllabus notes',
   solve: 'Setting up the calculation',
   run_python: 'Checking the mathematics',
+  compare_work: 'Checking your steps',
   explain: 'Writing the steps',
   explain_unverified: 'Writing the steps',
   validate_format: 'Checking the answer',
@@ -98,6 +100,7 @@ export function startTurn(input: {
   text: string
   subjectId?: number
   chapterId?: number
+  uploads?: number[]
 }): Turn {
   const key = String(input.threadId)
   if (turns.get(key)?.status === 'streaming') {
@@ -148,7 +151,7 @@ async function repairBlock(
 
 async function drive(
   turn: Turn,
-  input: { payload: Payload; user: User; threadId: number; text: string; subjectId?: number; chapterId?: number },
+  input: { payload: Payload; user: User; threadId: number; text: string; subjectId?: number; chapterId?: number; uploads?: number[] },
   signal: AbortSignal,
 ) {
   const { payload, user } = input
@@ -164,12 +167,19 @@ async function drive(
         messages: [new HumanMessage(input.text)],
         student: profileOf(user),
         mode: 'doubt' as const,
-        request: { text: input.text, subjectId: input.subjectId, chapterId: input.chapterId },
+        request: {
+          text: input.text,
+          subjectId: input.subjectId,
+          chapterId: input.chapterId,
+          uploads: input.uploads,
+        },
         context: emptyContext(),
         computation: emptyComputation(),
         draft: '',
         validation: emptyValidation(),
         flagged: false,
+        images: [],
+        compare: undefined,
       },
       { version: 'v2' as const, configurable: { thread_id: String(turn.threadId) }, signal },
     )

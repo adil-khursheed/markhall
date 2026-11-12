@@ -57,10 +57,25 @@ export type Validation = {
   attempts: number
 }
 
+export type ImageAttachment = {
+  uploadId: number
+  kind: 'student_solution' | 'textbook_question' | 'other'
+  text: string
+  confidence: number
+}
+
+export type CompareResult = {
+  ok: boolean
+  /** 1-based index of the first step that breaks the chain; -1 when all agree. */
+  firstBadStep: number
+  error?: string
+}
+
 export type TutorRequest = {
   text: string
   subjectId?: number
   chapterId?: number
+  uploads?: number[]
 }
 
 export const TutorState = Annotation.Root({
@@ -73,6 +88,8 @@ export const TutorState = Annotation.Root({
   draft: Annotation<string>(),
   validation: Annotation<Validation>(),
   flagged: Annotation<boolean>(),
+  images: Annotation<ImageAttachment[]>(),
+  compare: Annotation<CompareResult | undefined>(),
 })
 
 export function profileOf(user: User): StudentProfile {

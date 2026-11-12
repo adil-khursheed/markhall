@@ -73,6 +73,7 @@ export async function runTutor(input: {
   text: string
   subjectId?: number
   chapterId?: number
+  uploads?: number[]
 }): Promise<TutorResult> {
   const { payload, user, threadId, text } = input
 
@@ -82,12 +83,14 @@ export async function runTutor(input: {
       messages: [new HumanMessage(text)],
       student: profileOf(user),
       mode: 'doubt',
-      request: { text, subjectId: input.subjectId, chapterId: input.chapterId },
+      request: { text, subjectId: input.subjectId, chapterId: input.chapterId, uploads: input.uploads },
       context: emptyContext(),
       computation: emptyComputation(),
       draft: '',
       validation: emptyValidation(),
       flagged: false,
+      images: [],
+      compare: undefined,
     },
     { configurable: { thread_id: String(threadId) } },
   )

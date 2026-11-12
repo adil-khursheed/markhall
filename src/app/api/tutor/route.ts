@@ -11,6 +11,7 @@ type TutorRequestBody = {
   text?: string
   subjectId?: number
   chapterId?: number
+  uploads?: number[]
   /** Reconnect: the first block index the client has not rendered yet. */
   from?: number
 }
@@ -23,7 +24,7 @@ export async function POST(request: Request) {
   if (!user) return Response.json({ error: 'Sign in to use the tutor.' }, { status: 401 })
 
   const body = (await request.json().catch(() => null)) as TutorRequestBody | null
-  const reconnecting = !body?.text
+  const reconnecting = !body?.text && !body?.uploads?.length
 
   // Reconnect: replay unseen blocks from the running or finished turn.
   if (reconnecting) {
@@ -60,9 +61,13 @@ export async function POST(request: Request) {
     return streamTurn(request, stored, 0)
   }
 
-  const text = body?.text?.trim()
-  if (!text) return Response.json({ error: 'Write your doubt before sending.' }, { status: 400 })
+  const text = body?.text?.trim() ?? ''
+  if (!text && !body?.uploads?.length) {
+    return Response.json({ error: 'Write your doubt before sending.' }, { status: 400 })
+  }
   if (text.length > 4000) return Response.json({ error: 'Keep the doubt under 4000 characters.' }, { status: 400 })
+
+  const uploadIds = (body?.uploads ?? []).filter((id) => Number.isInteger(id)).slice(0, 4)
 
   let threadId: number
   try {
@@ -86,9 +91,46 @@ export async function POST(request: Request) {
     return Response.json({ error: 'That doubt thread could not be found.' }, { status: 404 })
   }
 
+  if (uploadIds.length) {
+    // Every attached photo must belong to the signed-in student.
+    for (const uploadId of uploadIds) {
+      try {
+        const upload = await payload.findByID({
+          collection: 'student-uploads',
+          id: uploadId,
+          depth: 0,
+          user,
+          overrideAccess: false,
+        })
+        const ownerId = typeof upload.owner === 'object' && upload.owner ? upload.owner.id : upload.owner
+        if (ownerId !== user.id) {
+          return Response.json({ error: 'You can only attach your own photos.' }, { status: 403 })
+        }
+        await payload.update({
+          collection: 'student-uploads',
+          id: uploadId,
+          depth: 0,
+          user,
+          overrideAccess: false,
+          data: { thread: threadId },
+        })
+      } catch {
+        return Response.json({ error: 'One of the attached photos could not be found.' }, { status: 404 })
+      }
+    }
+  }
+
   let turn
   try {
-    turn = startTurn({ payload, user, threadId, text, subjectId: body?.subjectId, chapterId: body?.chapterId })
+    turn = startTurn({
+      payload,
+      user,
+      threadId,
+      text,
+      subjectId: body?.subjectId,
+      chapterId: body?.chapterId,
+      uploads: uploadIds,
+    })
   } catch (error) {
     return Response.json(
       { error: error instanceof Error ? error.message : 'The tutor could not start.' },

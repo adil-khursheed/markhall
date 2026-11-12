@@ -21,6 +21,7 @@ import { MockAttempts } from './collections/MockAttempts'
 import { StudentUploads } from './collections/StudentUploads'
 import { embedContent } from './jobs/embedContent'
 import { ingestDocument } from './jobs/ingestDocument'
+import { purgeExpiredUploads } from './jobs/purgeExpiredUploads'
 import { env } from './lib/env'
 
 const filename = fileURLToPath(import.meta.url)
@@ -63,9 +64,17 @@ export default buildConfig({
   }),
   jobs: {
     autoRun: env.jobsAutoRun ? [{ allQueues: true, cron: '* * * * *' }] : undefined,
-    tasks: [embedContent],
+    tasks: [embedContent, purgeExpiredUploads],
     workflows: [ingestDocument],
   },
   sharp,
   plugins: [],
+  onInit: async (payload) => {
+    // Schedule the first retention purge; the task re-queues itself daily.
+    await payload.jobs.queue({
+      task: 'purgeExpiredUploads',
+      input: {},
+      waitUntil: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    })
+  },
 })

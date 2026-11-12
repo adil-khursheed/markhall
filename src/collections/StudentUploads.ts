@@ -3,12 +3,13 @@ import type { CollectionConfig } from 'payload'
 import { adminFieldOnly, loggedIn, ownerOrAdmin } from '../access'
 import { setOwner } from '../hooks/ownership'
 import { maxUploadSize, stripExif } from '../hooks/uploads'
+import { retentionDate } from '../lib/agent/vision'
 
 export const StudentUploads: CollectionConfig = {
   slug: 'student-uploads',
   admin: {
     useAsTitle: 'filename',
-    defaultColumns: ['filename', 'owner', 'purpose', 'createdAt'],
+    defaultColumns: ['filename', 'owner', 'purpose', 'kind', 'createdAt'],
     group: 'Learning',
   },
   access: {
@@ -47,6 +48,17 @@ export const StudentUploads: CollectionConfig = {
       ],
     },
     {
+      name: 'kind',
+      type: 'select',
+      label: 'Read as',
+      admin: { description: 'Filled by the vision transcription (Phase 7).' },
+      options: [
+        { label: 'Student solution', value: 'student_solution' },
+        { label: 'Textbook question', value: 'textbook_question' },
+        { label: 'Other', value: 'other' },
+      ],
+    },
+    {
       name: 'thread',
       type: 'relationship',
       relationTo: 'doubt-threads',
@@ -69,6 +81,10 @@ export const StudentUploads: CollectionConfig = {
     {
       name: 'retentionUntil',
       type: 'date',
+      admin: { position: 'sidebar' },
+      hooks: {
+        beforeChange: [({ value }) => value ?? retentionDate()],
+      },
     },
   ],
 }
