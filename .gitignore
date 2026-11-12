@@ -58,4 +58,4 @@ node_modules/
 .claude
 .codex
 .impeccable
-.opencode__pycache__/
+.opencode
