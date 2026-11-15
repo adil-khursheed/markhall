@@ -123,6 +123,7 @@ export interface Config {
   jobs: {
     tasks: {
       embedContent: TaskEmbedContent;
+      generateQuestions: TaskGenerateQuestions;
       purgeExpiredUploads: TaskPurgeExpiredUploads;
       inline: {
         input: unknown;
@@ -560,7 +561,7 @@ export interface PayloadJob {
     | {
         executedAt: string;
         completedAt: string;
-        taskSlug: 'inline' | 'embedContent' | 'purgeExpiredUploads';
+        taskSlug: 'inline' | 'embedContent' | 'generateQuestions' | 'purgeExpiredUploads';
         taskID: string;
         input?:
           | {
@@ -594,7 +595,7 @@ export interface PayloadJob {
       }[]
     | null;
   workflowSlug?: 'ingestDocument' | null;
-  taskSlug?: ('inline' | 'embedContent' | 'purgeExpiredUploads') | null;
+  taskSlug?: ('inline' | 'embedContent' | 'generateQuestions' | 'purgeExpiredUploads') | null;
   queue?: string | null;
   waitUntil?: string | null;
   processing?: boolean | null;
@@ -1089,6 +1090,18 @@ export interface TaskEmbedContent {
   input: {
     sourceType: 'knowledge' | 'question';
     sourceId: number;
+  };
+  output?: unknown;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskGenerateQuestions".
+ */
+export interface TaskGenerateQuestions {
+  input: {
+    subjectId: number;
+    chapterId?: number | null;
+    count: number;
   };
   output?: unknown;
 }

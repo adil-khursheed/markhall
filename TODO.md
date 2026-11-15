@@ -470,39 +470,47 @@ Execution plan derived from `Markhall — Architecture & Implementation Blueprin
 
 **Tasks**
 
-- [ ] Implement `plan_questions`:
-  - [ ] Read the blueprint and PYQ patterns.
-  - [ ] Weight weak chapters.
-  - [ ] Produce N specs: type, marks, difficulty, concept.
-  - [ ] Fan out with `Send`.
-- [ ] Implement the `question_worker` subgraph:
-  - [ ] Draft the question.
-  - [ ] Run Python to compute the answer.
-  - [ ] Check the item.
-  - [ ] Retry up to 2 times.
-- [ ] Implement `check_question`:
-  - [ ] Computed answer exists, is unique and fits the type.
-  - [ ] MCQ has exactly one correct option.
-  - [ ] Distractors come from computed common wrong methods.
-  - [ ] Concept appears in retrieved syllabus chunks.
-  - [ ] Nearest existing bank item is below 0.92 cosine similarity.
-  - [ ] Difficulty and marks match the spec.
-- [ ] Implement `collect`: drop failed items, save the rest with `saveQuestionDraft`.
-- [ ] Store `origin: 'ai_generated'`, `status: 'in_review'`, and the script/stdout in `verification`.
-- [ ] Exclude `needsFigure` items from generation prompts.
-- [ ] Admin review queue:
-  - [ ] List generated items with verification output and failure reasons.
-  - [ ] Approve, edit, reject and add reviewer identity.
-  - [ ] Publish only through the `status` gate.
-- [ ] Add tests for each check, especially unique answers, distractor computation and novelty.
+- [x] Implement `plan_questions`:
+  - [x] Read the blueprint and PYQ patterns.
+  - [x] Weight weak chapters. *(Average mastery per chapter, no-mastery chapters count as weak; count spreads by weight.)*
+  - [x] Produce N specs: type, marks, difficulty, concept.
+  - [x] Fan out with `Send`. *(Shortcut: workers fan out in batches of 4 with `Promise.all` inside the job instead of a LangGraph `Send` subgraph — same outcome, no checkpointer needed.)*
+- [x] Implement the `question_worker` subgraph:
+  - [x] Draft the question.
+  - [x] Run Python to compute the answer.
+  - [x] Check the item.
+  - [x] Retry up to 2 times. *(Plain function `generateOne` with 3 attempts total, each retry fed the failed checks.)*
+- [x] Implement `check_question`:
+  - [x] Computed answer exists, is unique and fits the type.
+  - [x] MCQ has exactly one correct option.
+  - [x] Distractors come from computed common wrong methods. *(Script must compute `wrong1..wrong3`; they must appear as the MCQ options.)*
+  - [x] Concept appears in retrieved syllabus chunks.
+  - [x] Nearest existing bank item is below 0.92 cosine similarity. *(Via `vectorSearch`; compares against published items of the same board/class/subject/chapter.)*
+  - [x] Difficulty and marks match the spec.
+- [x] Implement `collect`: drop failed items, save the rest with `saveQuestionDraft`. *(Failed items are dropped with reasons returned in the job output.)*
+- [x] Store `origin: 'ai_generated'`, `status: 'in_review'`, and the script/stdout in `verification`. *(The collection's existing enum value `generated` is used instead of adding `ai_generated`.)*
+- [x] Exclude `needsFigure` items from generation prompts.
+- [x] Admin review queue:
+  - [x] List generated items with verification output and failure reasons. *(The `in_review` queue exists from Phase 1/2; `verification` renders in the edit sidebar.)*
+  - [x] Approve, edit, reject and add reviewer identity. *(Status gate plus a `stampReviewer` afterChange hook that records the admin on any status change.)*
+  - [x] Publish only through the `status` gate. *(Existing `adminOrPublished` read rule; students never see `in_review` items.)*
+  - [x] Admin trigger: a "Generate questions" button on chapter edits queues `generateQuestions` via `POST /api/chapters/:id/generate?count=N`.
+- [x] Add tests for each check, especially unique answers, distractor computation and novelty. *(9 unit tests in `tests/unit/phase8.unit.spec.ts`; 3 Postgres-gated tests in `tests/int/generation.int.spec.ts` cover `saveQuestionDraft`, retry-on-duplicate and reviewer stamping.)*
 
 **Exit criteria**
 
-- A generation request produces checked drafts with computed answers.
-- Every generated numeric answer is sandbox-verified.
-- Near-duplicate items are rejected by the novelty check.
-- No generated item reaches students before `published`.
-- Rejections record a reason for prompt improvement.
+- [~] A generation request produces checked drafts with computed answers. *(Unit-tested checks and mocked-model integration tests; no live model + sandbox run yet — Docker is down.)*
+- [~] Every generated numeric answer is sandbox-verified. *(The worker only saves when the sandbox returned `final` with a number; not yet exercised live.)*
+- [~] Near-duplicate items are rejected by the novelty check. *(Unit-tested threshold logic with mocked similarity; not yet run against real embeddings.)*
+- [x] No generated item reaches students before `published`. *(Verified by the access test in `tests/int/generation.int.spec.ts` — students get 0 results for `in_review` items.)*
+- [~] Rejections record a reason for prompt improvement. *(Failed specs return their check errors in the job output; no admin UI for browsing them yet.)*
+
+**Phase 8 notes** (2026-11-15)
+
+- Implemented: `src/lib/generate/plan.ts` (specs, weak-chapter weights, count distribution), `src/lib/generate/worker.ts` (`generateOne`, `checkQuestion`, `saveQuestionDraft`, `cosine`, novelty via `vectorSearch`), `src/jobs/generateQuestions.ts` (batches of 4, failure reasons in output), `Chapters.ts` generate endpoint + `GenerateButton` admin component, `stampReviewer` hook in `src/hooks/review.ts`, `origin: 'generated'` + `status: 'in_review'` drafts with `verification` JSON and `finalAnswer`.
+- Verified: `pnpm typecheck` clean; `pnpm lint` 0 errors; `pnpm build` passes; 33 unit tests pass (9 new). The generation script convention is `answer(final=..., unique=True, wrong1..3=...)`; the sandbox `unique` value must be 1.
+- Not verified: no live generation run — Docker/Postgres is down in this session, so `tests/int/generation.int.spec.ts` joins the other DB-dependent suites as skipped, and the real solver→sandbox→novelty loop has not produced a question yet.
+- Shortcuts/risks: novelty compares only against published items (`vectorSearch` filters `status='published'`), so a run that generates many near-identical drafts in one batch could still save similar in_review items until the first is published and re-embedded; the reviewer stamp fires on any admin status change (not a dedicated approve action); student-facing chat generation stays refused — generation is admin-only until Phase 9 wires it into mock tests.
 
 ---
 

@@ -20,6 +20,7 @@ import { MockTests } from './collections/MockTests'
 import { MockAttempts } from './collections/MockAttempts'
 import { StudentUploads } from './collections/StudentUploads'
 import { embedContent } from './jobs/embedContent'
+import { generateQuestions } from './jobs/generateQuestions'
 import { ingestDocument } from './jobs/ingestDocument'
 import { purgeExpiredUploads } from './jobs/purgeExpiredUploads'
 import { env } from './lib/env'
@@ -64,7 +65,7 @@ export default buildConfig({
   }),
   jobs: {
     autoRun: env.jobsAutoRun ? [{ allQueues: true, cron: '* * * * *' }] : undefined,
-    tasks: [embedContent, purgeExpiredUploads],
+    tasks: [embedContent, generateQuestions, purgeExpiredUploads],
     workflows: [ingestDocument],
   },
   sharp,

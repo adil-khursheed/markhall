@@ -3,6 +3,7 @@ import type { CollectionConfig } from 'payload'
 import { adminFieldOnly, adminOnly, adminOrPublished } from '../access'
 import { boardField, classLevelField, languageField, statusField } from '../fields/common'
 import { queueQuestionEmbed, removeQuestionEmbed } from '../hooks/ingest'
+import { stampReviewer } from '../hooks/review'
 
 export const QuestionBank: CollectionConfig = {
   slug: 'question-bank',
@@ -22,7 +23,7 @@ export const QuestionBank: CollectionConfig = {
     delete: adminOnly,
   },
   hooks: {
-    afterChange: [queueQuestionEmbed],
+    afterChange: [queueQuestionEmbed, stampReviewer],
     afterDelete: [removeQuestionEmbed],
   },
   fields: [
