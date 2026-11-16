@@ -172,6 +172,10 @@ export interface User {
   role: 'student' | 'admin';
   board?: ('cbse' | 'icse' | 'up') | null;
   classLevel?: number | null;
+  /**
+   * The year the student plans to sit the board examination.
+   */
+  targetExamYear?: number | null;
   preferredLanguage?: ('en' | 'hi') | null;
   updatedAt: string;
   createdAt: string;
@@ -770,6 +774,7 @@ export interface UsersSelect<T extends boolean = true> {
   role?: T;
   board?: T;
   classLevel?: T;
+  targetExamYear?: T;
   preferredLanguage?: T;
   updatedAt?: T;
   createdAt?: T;

@@ -42,11 +42,22 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
     CREATE INDEX "verified_answers_chapter_idx" ON "verified_answers" USING btree ("chapter_id");
     CREATE INDEX "verified_answers_updated_at_idx" ON "verified_answers" USING btree ("updated_at");
     CREATE INDEX "verified_answers_created_at_idx" ON "verified_answers" USING btree ("created_at");
+
+    -- Payload locks documents through this table; every collection needs a rel column.
+    -- Runs last: the FKs reference the tables created above.
+    ALTER TABLE "payload_locked_documents_rels" ADD COLUMN "agent_runs_id" integer;
+    ALTER TABLE "payload_locked_documents_rels" ADD COLUMN "verified_answers_id" integer;
+    ALTER TABLE "payload_locked_documents_rels" ADD CONSTRAINT "payload_locked_documents_rels_agent_runs_fk" FOREIGN KEY ("agent_runs_id") REFERENCES "public"."agent_runs"("id") ON DELETE cascade ON UPDATE no action;
+    ALTER TABLE "payload_locked_documents_rels" ADD CONSTRAINT "payload_locked_documents_rels_verified_answers_fk" FOREIGN KEY ("verified_answers_id") REFERENCES "public"."verified_answers"("id") ON DELETE cascade ON UPDATE no action;
   `)
 }
 
 export async function down({ db }: MigrateDownArgs): Promise<void> {
   await db.execute(sql`
+    ALTER TABLE "payload_locked_documents_rels" DROP CONSTRAINT "payload_locked_documents_rels_verified_answers_fk";
+    ALTER TABLE "payload_locked_documents_rels" DROP CONSTRAINT "payload_locked_documents_rels_agent_runs_fk";
+    ALTER TABLE "payload_locked_documents_rels" DROP COLUMN "verified_answers_id";
+    ALTER TABLE "payload_locked_documents_rels" DROP COLUMN "agent_runs_id";
     DROP TABLE "verified_answers";
     DROP TABLE "agent_runs";
     DROP TYPE "public"."enum_agent_runs_status";

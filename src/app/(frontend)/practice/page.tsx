@@ -4,7 +4,7 @@ import config from '@payload-config'
 
 import { PracticeDesk } from '@/components/practice/PracticeDesk'
 import { StudyShell } from '@/components/study/StudyShell'
-import { getCurrentUser } from '@/lib/auth'
+import { getCurrentUser, requireCompleteProfile } from '@/lib/auth'
 import { coveragePercent } from '@/lib/mastery'
 import type { Chapter, Subject } from '@/payload-types'
 import type { Where } from 'payload'
@@ -28,6 +28,8 @@ export default async function PracticePage({ searchParams }: PageProps) {
     // Fall through to the sign-in redirect if the database is unreachable.
   }
   if (!user) redirect('/login')
+
+  requireCompleteProfile(user)
 
   const payload = await getPayload({ config })
 

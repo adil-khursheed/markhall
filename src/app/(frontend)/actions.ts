@@ -1,6 +1,6 @@
 'use server'
 
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { getPayload } from 'payload'
 import { generatePayloadCookie } from 'payload/shared'
@@ -135,4 +135,88 @@ export async function signOut() {
 
   cookieStore.delete(`${prefix}-token`)
   redirect('/')
+}
+
+export type ProfileState = {
+  error?: string
+  saved?: boolean
+}
+
+const BOARDS = ['cbse', 'icse', 'up']
+const LANGUAGES = ['en', 'hi']
+
+export async function saveProfile(_previous: ProfileState, formData: FormData): Promise<ProfileState> {
+  const payload = await getPayload({ config })
+  const { user } = await payload.auth({ headers: await headers() })
+  if (!user) return { error: 'Sign in to update your details.' }
+
+  const name = readText(formData, 'name')
+  const board = readText(formData, 'board')
+  const classLevel = Number(formData.get('classLevel'))
+  const examYear = readText(formData, 'targetExamYear')
+  const preferredLanguage = readText(formData, 'preferredLanguage')
+
+  if (name.length < 2) return { error: 'Add the name you want on the roll call.' }
+  if (!BOARDS.includes(board)) return { error: 'Choose your board.' }
+  if (!Number.isInteger(classLevel) || classLevel < 6 || classLevel > 12) {
+    return { error: 'Choose your class between 6 and 12.' }
+  }
+  if (examYear && (!/^\d{4}$/.test(examYear) || Number(examYear) < 2026 || Number(examYear) > 2035)) {
+    return { error: 'Enter a target exam year between 2026 and 2035.' }
+  }
+  if (!LANGUAGES.includes(preferredLanguage)) return { error: 'Choose your preferred language.' }
+
+  try {
+    await payload.update({
+      collection: 'users',
+      id: user.id,
+      data: {
+        name,
+        board: board as 'cbse' | 'icse' | 'up',
+        classLevel,
+        targetExamYear: examYear ? Number(examYear) : null,
+        preferredLanguage: preferredLanguage as 'en' | 'hi',
+      },
+      user,
+      overrideAccess: false,
+    })
+  } catch {
+    return { error: 'Your details could not be saved. Try again in a moment.' }
+  }
+
+  return { saved: true }
+}
+
+export async function changePassword(
+  _previous: ProfileState,
+  formData: FormData,
+): Promise<ProfileState> {
+  const payload = await getPayload({ config })
+  const { user } = await payload.auth({ headers: await headers() })
+  if (!user) return { error: 'Sign in to change your password.' }
+
+  const current = String(formData.get('current') ?? '')
+  const next = String(formData.get('next') ?? '')
+
+  if (next.length < 8) return { error: 'Use at least 8 characters for the new password.' }
+
+  try {
+    // Verifying through login keeps the current-password check in one place.
+    await payload.login({ collection: 'users', data: { email: user.email, password: current } })
+  } catch {
+    return { error: 'That current password is not right.' }
+  }
+
+  try {
+    await payload.update({
+      collection: 'users',
+      id: user.id,
+      data: { password: next },
+      overrideAccess: true,
+    })
+  } catch {
+    return { error: 'The new password could not be saved. Try again in a moment.' }
+  }
+
+  return { saved: true }
 }

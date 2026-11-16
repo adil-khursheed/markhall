@@ -7,11 +7,12 @@ import { Wordmark } from '@/components/brand/Wordmark'
 
 type AppShellProps = {
   children: ReactNode
-  active: 'dashboard' | 'practice' | 'mock' | 'library' | 'doubts'
+  active: 'dashboard' | 'practice' | 'mock' | 'library' | 'doubts' | 'profile'
   onDashboard: () => void
   onPractice: () => void
   onDoubts?: () => void
   onMock?: () => void
+  onProfile: () => void
   board: string
   coveragePercent?: number
   grade: string
@@ -26,6 +27,7 @@ export function AppShell({
   onPractice,
   onDoubts,
   onMock,
+  onProfile,
   board,
   coveragePercent,
   grade,
@@ -54,9 +56,15 @@ export function AppShell({
           </span>
         </div>
         <div className="topbar-actions">
-          <span className="student-mark" aria-label={`Signed in as ${user.name}`} title={user.name}>
+          <button
+            aria-label={`Your profile — signed in as ${user.name}`}
+            className="student-mark"
+            onClick={onProfile}
+            title="Your profile"
+            type="button"
+          >
             {initial}
-          </span>
+          </button>
           <form action={signOut}>
             <button className="topbar-signout" type="submit">
               Sign out

@@ -4,7 +4,7 @@ import { getPayload } from 'payload'
 import config from '@payload-config'
 
 import { TutorDesk } from '@/components/tutor/TutorDesk'
-import { getCurrentUser } from '@/lib/auth'
+import { getCurrentUser, requireCompleteProfile } from '@/lib/auth'
 import { coveragePercent } from '@/lib/mastery'
 
 export const dynamic = 'force-dynamic'
@@ -26,6 +26,8 @@ export default async function TutorPage() {
   }
 
   if (!user) redirect('/login')
+
+  requireCompleteProfile(user)
 
   const payload = await getPayload({ config })
   const { docs } = await payload

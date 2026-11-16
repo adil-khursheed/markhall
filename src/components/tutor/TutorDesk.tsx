@@ -344,6 +344,7 @@ export function TutorDesk({ user, threads, coveragePercent }: TutorDeskProps) {
       onDashboard={() => router.push('/dashboard')}
       onDoubts={() => {}}
       onMock={() => router.push('/mock')}
+      onProfile={() => router.push('/profile')}
       onPractice={() => router.push('/dashboard')}
       sessionActive={false}
       user={{ email: user.email, name: user.name }}

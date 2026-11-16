@@ -85,6 +85,15 @@ export const Users: CollectionConfig = {
       max: 12,
     },
     {
+      name: 'targetExamYear',
+      type: 'number',
+      min: 2026,
+      max: 2035,
+      admin: {
+        description: 'The year the student plans to sit the board examination.',
+      },
+    },
+    {
       name: 'preferredLanguage',
       type: 'select',
       defaultValue: 'en',

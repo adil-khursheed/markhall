@@ -13,7 +13,7 @@ export function StudyShell({
   coveragePercent,
   user,
 }: {
-  active: 'dashboard' | 'practice' | 'mock'
+  active: 'dashboard' | 'practice' | 'mock' | 'profile'
   children: ReactNode
   board: string
   grade: string
@@ -32,6 +32,7 @@ export function StudyShell({
       onDashboard={() => router.push('/dashboard')}
       onDoubts={() => router.push('/tutor')}
       onMock={() => router.push('/mock')}
+      onProfile={() => router.push('/profile')}
       onPractice={active === 'practice' ? () => {} : () => router.push('/practice')}
     >
       {children}

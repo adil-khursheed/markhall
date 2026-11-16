@@ -4,7 +4,7 @@ import { getPayload } from 'payload'
 import config from '@payload-config'
 
 import { MockShell } from '@/components/mock/MockShell'
-import { getCurrentUser } from '@/lib/auth'
+import { getCurrentUser, requireCompleteProfile } from '@/lib/auth'
 import { timeLeftMs } from '@/lib/mock/grade'
 import { relationId } from '@/lib/ingest/utils'
 import type { MockAttempt, MockTest } from '@/payload-types'
@@ -23,6 +23,8 @@ export default async function MockPage() {
     // Fall through to the sign-in redirect if the database is unreachable.
   }
   if (!user) redirect('/login')
+
+  requireCompleteProfile(user)
 
   const payload = await getPayload({ config })
 

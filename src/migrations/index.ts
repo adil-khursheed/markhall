@@ -4,6 +4,7 @@ import * as migration_20261110_120000_phase3_retrieval from './20261110_120000_p
 import * as migration_20261112_090000_phase7_uploads from './20261112_090000_phase7_uploads';
 import * as migration_20261115_090000_phase9_mock from './20261115_090000_phase9_mock';
 import * as migration_20261116_090000_phase11_ops from './20261116_090000_phase11_ops';
+import * as migration_20261116_120000_profile_exam_year from './20261116_120000_profile_exam_year';
 
 export const migrations = [
   {
@@ -35,5 +36,10 @@ export const migrations = [
     up: migration_20261116_090000_phase11_ops.up,
     down: migration_20261116_090000_phase11_ops.down,
     name: '20261116_090000_phase11_ops'
+  },
+  {
+    up: migration_20261116_120000_profile_exam_year.up,
+    down: migration_20261116_120000_profile_exam_year.down,
+    name: '20261116_120000_profile_exam_year'
   },
 ];

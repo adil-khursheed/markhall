@@ -4,7 +4,7 @@ import config from '@payload-config'
 
 import { DashboardDesk } from '@/components/study/DashboardDesk'
 import { StudyShell } from '@/components/study/StudyShell'
-import { getCurrentUser } from '@/lib/auth'
+import { getCurrentUser, requireCompleteProfile } from '@/lib/auth'
 import { coveragePercent } from '@/lib/mastery'
 import type { MockAttempt, TopicMastery } from '@/payload-types'
 
@@ -22,6 +22,8 @@ export default async function DashboardPage() {
     // Fall through to the sign-in redirect if the database is unreachable.
   }
   if (!user) redirect('/login')
+
+  requireCompleteProfile(user)
 
   const payload = await getPayload({ config })
 
