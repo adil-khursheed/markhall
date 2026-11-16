@@ -5,16 +5,19 @@ import type { Payload } from 'payload'
 import { extractText, getDocumentProxy, renderPageAsImage } from 'unpdf'
 
 import { getModel } from '@/lib/ai/models'
+import { looksLikeLegacyHindi } from '@/lib/ingest/hindi'
 import { sourcePdfPath } from './store'
 
 const MIN_PAGE_CHARS = 40
 
-function needsVision(text: string) {
+function needsVision(text: string, language?: string | null) {
   // shortcut: catches empty or garbled text layers, not every broken math layout; add layout checks when real PDFs need it.
   const compact = text.replace(/\s/g, '')
   if (compact.length < MIN_PAGE_CHARS) return true
   const garbage = (compact.match(/[\uFFFD\u0000-\u0008\u000B\u000C\u000E-\u001F]/g) ?? []).length
-  return garbage / compact.length > 0.02
+  if (garbage / compact.length > 0.02) return true
+  // Legacy Hindi fonts (Kruti Dev and friends) render Devanagari as ASCII garbage.
+  return looksLikeLegacyHindi(text, language ?? undefined)
 }
 
 function replyText(content: unknown) {
@@ -106,7 +109,7 @@ export async function extractPages(payload: Payload, documentId: number | string
     const pageNumber = index + 1
     let pageText = rawText.trim()
 
-    if (needsVision(pageText)) {
+    if (needsVision(pageText, doc.language)) {
       emptyPages += 1
       try {
         pageText = await transcribePage(pdf, pageNumber)

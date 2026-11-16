@@ -19,8 +19,12 @@ import { Attempts } from './collections/Attempts'
 import { MockTests } from './collections/MockTests'
 import { MockAttempts } from './collections/MockAttempts'
 import { StudentUploads } from './collections/StudentUploads'
+import { AgentRuns } from './collections/AgentRuns'
+import { VerifiedAnswers } from './collections/VerifiedAnswers'
 import { embedContent } from './jobs/embedContent'
 import { generateQuestions } from './jobs/generateQuestions'
+import { buildMockTest } from './jobs/buildMockTest'
+import { gradeMockAttempt } from './jobs/gradeMockAttempt'
 import { ingestDocument } from './jobs/ingestDocument'
 import { purgeExpiredUploads } from './jobs/purgeExpiredUploads'
 import { env } from './lib/env'
@@ -50,6 +54,8 @@ export default buildConfig({
     MockTests,
     MockAttempts,
     StudentUploads,
+    AgentRuns,
+    VerifiedAnswers,
   ],
   editor: lexicalEditor(),
   secret: env.payloadSecret,
@@ -65,7 +71,7 @@ export default buildConfig({
   }),
   jobs: {
     autoRun: env.jobsAutoRun ? [{ allQueues: true, cron: '* * * * *' }] : undefined,
-    tasks: [embedContent, generateQuestions, purgeExpiredUploads],
+    tasks: [embedContent, generateQuestions, buildMockTest, gradeMockAttempt, purgeExpiredUploads],
     workflows: [ingestDocument],
   },
   sharp,

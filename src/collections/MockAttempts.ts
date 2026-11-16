@@ -105,12 +105,18 @@ export const MockAttempts: CollectionConfig = {
           options: [
             { label: 'Pending', value: 'pending' },
             { label: 'Graded', value: 'graded' },
+            { label: 'Needs review', value: 'needs_review' },
           ],
           access: {
             update: adminFieldOnly,
           },
         },
       ],
+    },
+    {
+      name: 'reviewRequested',
+      type: 'checkbox',
+      defaultValue: false,
     },
     {
       name: 'totalScore',

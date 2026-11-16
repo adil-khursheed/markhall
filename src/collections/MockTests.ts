@@ -1,6 +1,6 @@
-import type { CollectionConfig } from 'payload'
+import type { CollectionConfig, Where } from 'payload'
 
-import { adminFieldOnly, adminOnly, adminOrPublished } from '../access'
+import { adminFieldOnly, adminOnly } from '../access'
 import { boardField, classLevelField, statusField } from '../fields/common'
 import { requirePublishedQuestions } from '../hooks/publishGate'
 
@@ -16,7 +16,19 @@ export const MockTests: CollectionConfig = {
     },
   },
   access: {
-    read: adminOrPublished,
+    // Students see shared published papers and their own personal papers only.
+    read: ({ req }): boolean | Where => {
+      if (req.user?.role === 'admin') return true
+      if (!req.user) return false
+      return {
+        and: [
+          { status: { equals: 'published' } },
+          {
+            or: [{ generatedFor: { exists: false } }, { generatedFor: { equals: req.user.id } }],
+          },
+        ],
+      }
+    },
     create: adminOnly,
     update: adminOnly,
     delete: adminOnly,

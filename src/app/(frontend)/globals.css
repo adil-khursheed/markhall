@@ -3621,3 +3621,482 @@ a.bg-primary,
     flex-wrap: wrap;
   }
 }
+/* Mock tests — exam-hall desk for timed papers */
+.mock-list,
+.mock-intro,
+.mock-results,
+.mock-run {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 24px 4px 48px;
+}
+
+.mock-list-head h1,
+.mock-intro h1,
+.mock-results-head h1,
+.mock-run-title {
+  font-family: var(--font-condensed);
+  font-size: 1.9rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin: 0 0 6px;
+}
+
+.mock-list-head p,
+.mock-intro-note,
+.mock-card-meta {
+  color: var(--pencil);
+  font-size: 0.92rem;
+  margin: 0;
+}
+
+.mock-section {
+  margin-top: 28px;
+}
+
+.mock-section h2 {
+  font-family: var(--font-condensed);
+  font-size: 1.05rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-deep);
+  border-bottom: 2px solid var(--rule);
+  padding-bottom: 6px;
+  margin: 0 0 12px;
+}
+
+.mock-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.mock-card {
+  background: var(--paper-light);
+  border: 1px solid var(--rule);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mock-card.is-live {
+  border-color: var(--rule-strong);
+  box-shadow: var(--shadow-soft);
+}
+
+.mock-card-title {
+  font-weight: 700;
+  margin: 0;
+}
+
+.mock-card .button {
+  align-self: flex-start;
+}
+
+.mock-attempts {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--paper-light);
+  border: 1px solid var(--rule);
+}
+
+.mock-attempts th,
+.mock-attempts td {
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--rule);
+  font-size: 0.92rem;
+}
+
+.mock-attempts th {
+  font-family: var(--font-condensed);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  color: var(--ink-deep);
+}
+
+.mock-link {
+  color: var(--ink);
+  text-decoration: underline;
+}
+
+.mock-empty {
+  color: var(--pencil);
+  background: var(--paper-light);
+  border: 1px dashed var(--rule);
+  padding: 14px 16px;
+  margin: 0;
+}
+
+.mock-intro-list {
+  margin: 14px 0;
+  padding-left: 20px;
+  line-height: 1.8;
+}
+
+/* Timed paper */
+.mock-run-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  border-bottom: 2px solid var(--rule-strong);
+  padding-bottom: 10px;
+}
+
+.mock-run-meta {
+  color: var(--pencil);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.mock-save {
+  margin-left: 10px;
+  color: var(--ink);
+}
+
+.mock-timer {
+  font-family: var(--font-condensed);
+  font-size: 2rem;
+  letter-spacing: 0.06em;
+  margin: 0;
+  padding: 2px 12px;
+  border: 2px solid var(--rule-strong);
+  background: var(--field-paper);
+}
+
+.mock-timer.is-low {
+  color: var(--red);
+  border-color: var(--red);
+}
+
+.mock-palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 16px 0;
+}
+
+.mock-palette-item {
+  min-width: 34px;
+  padding: 6px 8px;
+  border: 1px solid var(--rule);
+  background: var(--paper-light);
+  font-family: var(--font-condensed);
+  cursor: pointer;
+}
+
+.mock-palette-item.is-answered {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.mock-palette-item.is-current {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+
+.mock-question {
+  background: var(--paper-light);
+  border: 1px solid var(--rule);
+  padding: 18px 20px;
+}
+
+.mock-question-meta {
+  font-family: var(--font-condensed);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  font-size: 0.82rem;
+  color: var(--pencil);
+  margin: 0 0 8px;
+}
+
+.mock-stem {
+  line-height: 1.7;
+}
+
+.mock-stem p {
+  margin: 0 0 10px;
+}
+
+.mock-options {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.mock-option {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  text-align: left;
+  border: 1px solid var(--rule);
+  background: var(--field-paper);
+  padding: 10px 12px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.mock-option.is-picked {
+  border-color: var(--ink);
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+
+.mock-option-letter {
+  font-family: var(--font-condensed);
+  font-weight: 700;
+}
+
+.mock-answer-label {
+  display: block;
+  font-size: 0.88rem;
+  color: var(--pencil);
+  margin: 14px 0 4px;
+}
+
+.mock-answer {
+  width: 100%;
+  border: 1px solid var(--rule-strong);
+  background: var(--field-paper);
+  padding: 10px 12px;
+  font: inherit;
+  resize: vertical;
+}
+
+.mock-attach {
+  margin-top: 10px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.mock-attach input[type='file'] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.mock-attach-note {
+  color: var(--pencil);
+  font-size: 0.88rem;
+}
+
+.mock-run-foot {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 18px;
+  flex-wrap: wrap;
+}
+
+.mock-confirm {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  border: 1px solid var(--rule-strong);
+  background: var(--paper-light);
+  padding: 8px 12px;
+}
+
+.mock-error-text {
+  color: var(--red);
+  font-size: 0.92rem;
+  margin: 10px 0 0;
+}
+
+/* Marked paper */
+.mock-score {
+  font-family: var(--font-condensed);
+  font-size: 1.6rem;
+  letter-spacing: 0.05em;
+  margin: 6px 0;
+}
+
+.mock-banner {
+  border: 1px solid var(--rule-strong);
+  border-left: 6px solid var(--ink);
+  background: var(--paper-light);
+  padding: 10px 14px;
+  margin: 10px 0;
+}
+
+.mock-banner.is-provisional {
+  border-left-color: var(--red);
+}
+
+.mock-next {
+  margin: 10px 0;
+}
+
+.mock-result-rows {
+  list-style: none;
+  padding: 0;
+  margin: 18px 0 0;
+  display: grid;
+  gap: 12px;
+}
+
+.mock-result-row {
+  background: var(--paper-light);
+  border: 1px solid var(--rule);
+  padding: 14px 16px;
+}
+
+.mock-result-row.is-lost {
+  border-left: 6px solid var(--red);
+}
+
+.mock-result-head {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-condensed);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  color: var(--ink-deep);
+  margin-bottom: 6px;
+}
+
+.mock-result-marks {
+  color: var(--pencil);
+}
+
+.mock-result-row.is-lost .mock-result-marks {
+  color: var(--red);
+}
+
+.mock-your-answer {
+  border-top: 1px dashed var(--rule);
+  margin: 10px 0 0;
+  padding-top: 8px;
+  font-size: 0.92rem;
+}
+
+.mock-feedback {
+  background: var(--field-paper);
+  border: 1px solid var(--rule);
+  padding: 8px 12px;
+  margin: 8px 0 0;
+  font-size: 0.92rem;
+}
+
+.mock-note {
+  color: var(--pencil);
+  font-size: 0.9rem;
+}
+
+.mock-action {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+@media (max-width: 760px) {
+  .mock-run,
+  .mock-list,
+  .mock-results,
+  .mock-intro {
+    padding: 16px 2px 40px;
+  }
+
+  .mock-run-head {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .mock-question {
+    padding: 14px;
+  }
+}
+
+/* Practice desk and real dashboard */
+.practice-desk,
+.practice-pick,
+.practice-run {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 24px 4px 48px;
+}
+
+.practice-pick h1,
+.practice-run .mock-run-title {
+  font-family: var(--font-condensed);
+  font-size: 1.9rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin: 0 0 6px;
+}
+
+.practice-sub {
+  color: var(--pencil);
+  font-size: 0.95rem;
+  margin: 0 0 16px;
+}
+
+.practice-select {
+  max-width: 480px;
+}
+
+.practice-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+.practice-verdict {
+  margin: 14px 0 0;
+  padding: 10px 14px;
+  border: 1px solid var(--rule-strong);
+  border-left: 6px solid var(--ink);
+  background: var(--field-paper);
+}
+
+.practice-verdict.is-correct {
+  border-left-color: var(--ink);
+}
+
+.practice-verdict.is-wrong {
+  border-left-color: var(--red);
+  color: var(--red-deep);
+}
+
+.mock-option.is-revealed {
+  border-color: var(--ink);
+}
+
+.dash-note {
+  color: var(--pencil);
+  font-size: 0.92rem;
+  margin-top: 18px;
+}
+
+.dash-note a {
+  color: var(--ink);
+}
+
+/* Board-affiliation disclaimer (product trust copy) */
+.board-note {
+  color: var(--pencil);
+  font-size: 0.78rem;
+  text-align: center;
+  padding: 4px 16px 14px;
+}

@@ -4,8 +4,6 @@ import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { AppShell } from '@/components/study/AppShell'
-import { overallCoverage } from '@/components/study/data'
-import type { Subject } from '@/components/study/types'
 import type { TutorEvent } from '@/lib/agent/turn'
 import { Block } from './Block'
 
@@ -27,6 +25,7 @@ type ChatMessage =
 type TutorDeskProps = {
   user: { name: string; email: string; board?: string; classLevel?: number }
   threads: ThreadSummary[]
+  coveragePercent?: number
 }
 
 const BOARD_LABELS: Record<string, string> = {
@@ -47,7 +46,7 @@ function previewOf(text: string) {
   return text.length > PREVIEW_LENGTH ? `${text.slice(0, PREVIEW_LENGTH)}…` : text
 }
 
-export function TutorDesk({ user, threads }: TutorDeskProps) {
+export function TutorDesk({ user, threads, coveragePercent }: TutorDeskProps) {
   const router = useRouter()
   const [summaries, setSummaries] = useState(threads)
   const [activeThreadId, setActiveThreadId] = useState<number | null>(null)
@@ -57,7 +56,6 @@ export function TutorDesk({ user, threads }: TutorDeskProps) {
   const [sending, setSending] = useState(false)
   const [input, setInput] = useState('')
   const [reported, setReported] = useState(false)
-  const [coverage, setCoverage] = useState<number | undefined>(undefined)
   const [photos, setPhotos] = useState<{ id: number; url: string }[]>([])
   const [uploading, setUploading] = useState(false)
 
@@ -67,24 +65,6 @@ export function TutorDesk({ user, threads }: TutorDeskProps) {
   const idRef = useRef(0)
   const endRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    let cancelled = false
-    queueMicrotask(() => {
-      if (cancelled) return
-      try {
-        const raw = window.localStorage.getItem('markhall-seat-map-v2')
-        if (!raw) return
-        const stored = JSON.parse(raw) as { subjects?: Subject[] }
-        if (Array.isArray(stored.subjects)) setCoverage(overallCoverage(stored.subjects).percent)
-      } catch {
-        // The seat map is the study prototype's data; the tutor works without it.
-      }
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [])
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: 'end' })
@@ -359,10 +339,11 @@ export function TutorDesk({ user, threads }: TutorDeskProps) {
     <AppShell
       active="doubts"
       board={boardLabel}
-      coveragePercent={coverage}
+      coveragePercent={coveragePercent}
       grade={user.classLevel != null ? String(user.classLevel) : '—'}
       onDashboard={() => router.push('/dashboard')}
       onDoubts={() => {}}
+      onMock={() => router.push('/mock')}
       onPractice={() => router.push('/dashboard')}
       sessionActive={false}
       user={{ email: user.email, name: user.name }}

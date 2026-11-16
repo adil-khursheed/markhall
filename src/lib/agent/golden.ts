@@ -55,4 +55,29 @@ export const goldenDoubts: GoldenDoubt[] = [
     question: 'Solve x^2 - 7x + 12 = 0. What is the smaller root?',
     expected: 3,
   },
+  {
+    id: 'even-sum',
+    question: 'What is the sum of the first 20 even numbers?',
+    expected: 420,
+  },
+  {
+    id: 'simple-division',
+    question: 'If x divided by 4 equals 9, what is x?',
+    expected: 36,
+  },
+  {
+    id: 'speed-2',
+    question: 'A bus covers 180 km in 3 hours. What is its average speed in km/h?',
+    expected: 60,
+  },
+  {
+    id: 'percentage-2',
+    question: 'What is 15 percent of 480?',
+    expected: 72,
+  },
+  {
+    id: 'rectangle-area',
+    question: 'A rectangle has a length of 12 cm and a breadth of 5 cm. What is its area in square centimetres?',
+    expected: 60,
+  },
 ]

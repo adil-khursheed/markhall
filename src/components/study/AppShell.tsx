@@ -11,6 +11,7 @@ type AppShellProps = {
   onDashboard: () => void
   onPractice: () => void
   onDoubts?: () => void
+  onMock?: () => void
   board: string
   coveragePercent?: number
   grade: string
@@ -24,6 +25,7 @@ export function AppShell({
   onDashboard,
   onPractice,
   onDoubts,
+  onMock,
   board,
   coveragePercent,
   grade,
@@ -52,7 +54,6 @@ export function AppShell({
           </span>
         </div>
         <div className="topbar-actions">
-          {active !== 'doubts' && <span className="sample-chip">Sample data</span>}
           <span className="student-mark" aria-label={`Signed in as ${user.name}`} title={user.name}>
             {initial}
           </span>
@@ -98,10 +99,21 @@ export function AppShell({
               <span className="nav-soon">Soon</span>
             </span>
           )}
-          <span className="nav-item is-disabled" aria-disabled="true">
-            Mock tests
-            <span className="nav-soon">Soon</span>
-          </span>
+          {onMock ? (
+            <button
+              aria-current={active === 'mock' ? 'page' : undefined}
+              className={`nav-item${active === 'mock' ? ' is-active' : ''}`}
+              onClick={onMock}
+              type="button"
+            >
+              Mock tests
+            </button>
+          ) : (
+            <span className="nav-item is-disabled" aria-disabled="true">
+              Mock tests
+              <span className="nav-soon">Soon</span>
+            </span>
+          )}
           <span className="nav-item is-disabled" aria-disabled="true">
             Question bank
             <span className="nav-soon">Soon</span>
@@ -149,10 +161,22 @@ export function AppShell({
             Ask a doubt · Soon
           </span>
         )}
-        <span className="bottom-item is-disabled" aria-disabled="true">
-          Mock tests · Soon
-        </span>
+        {onMock ? (
+          <button
+            aria-current={active === 'mock' ? 'page' : undefined}
+            className={`bottom-item${active === 'mock' ? ' is-active' : ''}`}
+            onClick={onMock}
+            type="button"
+          >
+            Mock tests
+          </button>
+        ) : (
+          <span className="bottom-item is-disabled" aria-disabled="true">
+            Mock tests · Soon
+          </span>
+        )}
       </nav>
+      <p className="board-note">Markhall is an independent study tool and is not affiliated with any examination board.</p>
     </div>
   )
 }

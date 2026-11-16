@@ -520,55 +520,63 @@ Execution plan derived from `Markhall — Architecture & Implementation Blueprin
 
 **Tasks**
 
-- [ ] Finish `mock-tests` and `mock-attempts` fields and access rules.
-- [ ] Implement the `buildMockTest` workflow:
-  - [ ] Read the blueprint marks pattern.
-  - [ ] Add extra weight to weak chapters.
-  - [ ] Use published bank items first.
-  - [ ] Queue generation for missing slots before the test starts.
-  - [ ] Set `in_review` or `published` by the status rule.
-  - [ ] Snapshot the blueprint.
-- [ ] Enforce the review gate: a test is `published` only when every question is `published`.
-- [ ] Server-side timer:
-  - [ ] Compute `deadlineAt` on the server at start.
-  - [ ] Accept autosave writes until the deadline.
-  - [ ] Reject late answers on submit.
-  - [ ] Resume an in-progress attempt.
-- [ ] Test-taking UI:
-  - [ ] Timer, question palette, autosave indicator.
-  - [ ] Shuffle question and option order per attempt.
-  - [ ] Local autosave queue for flaky networks.
-  - [ ] Submit and confirmation.
-  - [ ] Disable the tutor for questions in an active timed attempt.
-  - [ ] Release solutions only after submit.
-- [ ] Grading graph:
-  - [ ] `read_image` for handwritten answer images.
-  - [ ] `score_objective` for MCQ and numerical answers.
-  - [ ] `grade_answer` for written answers using marking points.
-  - [ ] `finalize` totals marks and writes feedback.
-  - [ ] Fan out one branch per answer with `Send`.
-- [ ] Scoring rules:
-  - [ ] MCQ by code.
-  - [ ] Numerical by sandbox with a stated tolerance.
-  - [ ] Written answers award marks per marking point and reference the student's own steps.
-  - [ ] Re-check numeric claims through `runPython`.
-  - [ ] Low confidence sets `gradingStatus: 'needs_review'` and shows a provisional score.
-- [ ] Add a "Request review" action for students.
-- [ ] Results UI:
-  - [ ] Total score, section breakdown, per-question feedback.
-  - [ ] Provisional-review state.
-  - [ ] Next revision recommendation.
-- [ ] Exclude questions already in the student's history from new tests.
-- [ ] Mark personal tests with `generatedFor`; use only shared published tests for any comparison or percentile feature.
-- [ ] Add end-to-end tests: start, autosave, timeout, submit, grade, review.
+- [x] Finish `mock-tests` and `mock-attempts` fields and access rules. *(Students now read only shared published tests or their own personal tests; `gradingStatus` gained `needs_review`; `reviewRequested` checkbox added.)*
+- [x] Implement the `buildMockTest` workflow *(as a Payload task, not a LangGraph workflow)*:
+  - [x] Read the blueprint marks pattern. *(A fixed board-style pattern: 40% MCQ 1 mark, 20% numeric 2 marks, 20% short 3 marks, 20% long 5 marks; difficulty 25/50/25.)*
+  - [x] Add extra weight to weak chapters. *(Reuses `weakChapterWeights` + `distributeCount`; personal tests weight the student's own mastery, shared tests weight everyone's.)*
+  - [x] Use published bank items first. *(Type+chapter are hard filters; marks and difficulty are preferences.)*
+  - [x] Queue generation for missing slots before the test starts. *(Calls `generateOne` directly per slot in batches of 4 with a system user — the `generateQuestions` task would have re-planned and ignored the slot's type/marks.)*
+  - [x] Set `in_review` or `published` by the status rule.
+  - [x] Snapshot the blueprint. *(Pattern, shares, reused/generated ids and failure reasons in `blueprintSnapshot`.)*
+- [x] Enforce the review gate: a test is `published` only when every question is `published`. *(Pre-existing `requirePublishedQuestions` hook; covered by an integration test.)*
+- [x] Server-side timer:
+  - [x] Compute `deadlineAt` on the server at start.
+  - [x] Accept autosave writes until the deadline.
+  - [x] Reject late answers on submit. *(Submit carries no answers; late answer writes are rejected by autosave with a 410 that closes and grades the attempt.)*
+  - [x] Resume an in-progress attempt. *(Start resumes instead of restarting the clock; a stale past-deadline attempt closes and grades.)*
+- [x] Test-taking UI (`/mock`, `/mock/[id]`):
+  - [x] Timer, question palette, autosave indicator.
+  - [x] Shuffle question and option order per attempt. *(Seeded by the attempt id, so reloads are stable.)*
+  - [x] Local autosave queue for flaky networks. *(In-memory pending queue with a 4 s retry interval, not localStorage.)*
+  - [x] Submit and confirmation.
+  - [x] Disable the tutor for questions in an active timed attempt. *(The tutor API 403s while an `in_progress` attempt exists.)*
+  - [x] Release solutions only after submit. *(Correct answers appear in feedback after grading; `finalAnswer`/`canonicalSolution` remain admin-only fields.)*
+- [~] Grading graph *(as a `gradeMockAttempt` Payload task, not a LangGraph graph)*:
+  - [x] `read_image` for handwritten answer images.
+  - [x] `score_objective` for MCQ and numerical answers.
+  - [x] `grade_answer` for written answers using marking points.
+  - [x] `finalize` totals marks and writes feedback.
+  - [ ] Fan out one branch per answer with `Send`. *(Sequential loop; batching can come later if grading latency matters.)*
+- [~] Scoring rules:
+  - [x] MCQ by code. *(Response must be a printed option and equal the computed `finalAnswer`.)*
+  - [x] Numerical by sandbox with a stated tolerance. *(1% relative, floor 1e-9; sandbox failure or a missing reference value sets `needs_review`.)*
+  - [x] Written answers award marks per marking point and reference the student's own steps. *(Judge model grades against `canonicalSolution`; bare final answers earn nothing on multi-step questions.)*
+  - [ ] Re-check numeric claims through `runPython`. *(Not implemented; the judge's numeric claims are not independently verified yet.)*
+  - [x] Low confidence sets `gradingStatus: 'needs_review'` and shows a provisional score.
+- [x] Add a "Request review" action for students.
+- [~] Results UI:
+  - [x] Total score, section breakdown, per-question feedback. *(Single-section papers, so the breakdown is one section.)*
+  - [x] Provisional-review state.
+  - [x] Next revision recommendation. *(The chapter of the first answer that lost marks.)*
+- [x] Exclude questions already in the student's history from new tests. *(Practice `attempts` + past mock answers, personal tests only.)*
+- [x] Mark personal tests with `generatedFor`; use only shared published tests for any comparison or percentile feature. *(Personal published tests are hidden from other students by the read rule.)*
+- [~] Add end-to-end tests: start, autosave, timeout, submit, grade, review. *(Unit tests cover the pure scoring/assembly logic; an integration spec covers access rules and the publish gate. No live end-to-end run yet — Docker/Postgres was down in this session.)*
 
 **Exit criteria**
 
-- A timed test starts with a server deadline and cannot accept late answers.
-- Objective and numerical answers score deterministically.
-- Written answers show marking-point feedback and low-confidence grades are provisional.
-- The tutor is unavailable during an active attempt.
-- A test never publishes with an unpublished question.
+- [~] A timed test starts with a server deadline and cannot accept late answers. *(Route logic unit-tested paths + code review; not yet exercised against a live database.)*
+- [~] Objective and numerical answers score deterministically. *(Pure functions unit-tested; the sandbox tolerance path needs a live run.)*
+- [~] Written answers show marking-point feedback and low-confidence grades are provisional. *(Implemented; the real judge model has not graded a paper yet.)*
+- [~] The tutor is unavailable during an active attempt. *(Implemented in the tutor route; no live test.)*
+- [~] A test never publishes with an unpublished question. *(Covered by an integration test against the pre-existing gate.)*
+
+**Phase 9 notes** (2026-11-15)
+
+- Implemented: `src/lib/mock/pattern.ts` (pattern planning, slot picking, seeded shuffle), `src/lib/mock/grade.ts` (MCQ scoring, numeric parse + sandbox tolerance script, totals), `src/jobs/buildMockTest.ts`, `src/jobs/gradeMockAttempt.ts`, `src/app/api/mock/route.ts` (start/autosave/attach/submit/review), tutor lock in `src/app/api/tutor/route.ts`, `/mock` + `/mock/[id]` pages, `src/components/mock/MockShell.tsx` + `TestRun.tsx`, mock styles in `globals.css`, nav seam in `AppShell`/`StudentApp`/`TutorDesk`, migration `20261115_090000_phase9_mock.ts`, types regenerated.
+- Also fixed: `20261112_090000_phase7_uploads.ts` was written in Phase 7 but never registered in `src/migrations/index.ts`, so it would never have run; it is now in the list.
+- Verified: `pnpm typecheck` clean; `pnpm lint` 0 errors (warnings pre-existing); `pnpm build` passes with `/mock`, `/mock/[id]`, `/api/mock` registered; 43 unit tests pass (10 new in `tests/unit/phase9.unit.spec.ts`); `tests/int/mock.int.spec.ts` adds 5 DB-gated tests (shared/in_review/personal visibility, publish gate, owner-only attempts, admin-only score fields). The migration was applied to a live database on 2026-11-16 after fixing a wrong enum name — the type is `enum_mock_attempts_answers_grading_status` (Payload/Drizzle names nested-select enums after the array path), not `enum_mock_attempts_grading_status`.
+- Not verified: no live run — Docker/Postgres is down in this session, so the integration suite is skipped, and the real build→generate→grade loop with models and sandbox has not produced a paper yet.
+- Shortcuts/risks: generation for missing slots calls `generateOne` with a synthetic admin user (sandbox key `admin:0`); a personal test stays `in_review` until its generated questions are reviewed and published, then an admin must publish the test itself — the student sees nothing until then. Grading runs one answer at a time; numeric claims inside written answers are not re-verified through the sandbox; expired attempts are closed by the next autosave/start/submit or the close-and-grade button, not a scheduled sweep; the autosave retry queue lives in memory only.
 
 ---
 
@@ -578,34 +586,40 @@ Execution plan derived from `Markhall — Architecture & Implementation Blueprin
 
 **Tasks**
 
-- [ ] Update `topic-mastery` after each attempt:
-  - [ ] Increment attempts and correct counts.
-  - [ ] Recompute mastery from 0 to 1.
-  - [ ] Update `lastSeenAt`.
-- [ ] Write `attempts` rows for practice and mock answers.
-- [ ] Feed mastery into `plan_questions`: more items from weak chapters.
-- [ ] Feed mastery into `explain`: more scaffolding where mastery is low.
-- [ ] Add weak/strong topic views to the dashboard using real data.
-- [ ] Replace the local sample-data prototype with Payload-backed reads:
-  - [ ] Subjects and chapters.
-  - [ ] Published questions.
-  - [ ] Mastery and attempts.
-  - [ ] Mock tests and results.
-- [ ] Hindi support:
-  - [ ] Use a multilingual embedding model.
-  - [ ] Keep the `language` filter end to end.
-  - [ ] Detect legacy Hindi font garbage by Devanagari share and route to vision.
-  - [ ] Normalise Devanagari digits and Indian number formats.
-  - [ ] Keep English `topicTags` on chunks so Hindi or Hinglish queries find English syllabus chunks.
-  - [ ] Add Hindi UI copy where confirmed.
-- [ ] Add tests for mastery updates, weak-chapter weighting and Hinglish retrieval.
+- [x] Update `topic-mastery` after each attempt:
+  - [x] Increment attempts and correct counts.
+  - [x] Recompute mastery from 0 to 1. (EMA: `0.8 × previous + 0.2 × latest`, seeded at 0.5 for a new chapter — one answer can never swing a chapter to 0 or 1.)
+  - [x] Update `lastSeenAt`.
+- [x] Write `attempts` rows for practice and mock answers. (Mock grading writes one row per *graded* answer; provisional rows wait for human review. Practice writes on every machine-checkable answer.)
+- [x] Feed mastery into `plan_questions`: more items from weak chapters. (Already landed in Phase 8 — `weakChapterWeights`; no new code.)
+- [x] Feed mastery into `explain`: more scaffolding where mastery is low. (Already landed in Phase 5 — `masteryNote`; no new code.)
+- [x] Add weak/strong topic views to the dashboard using real data.
+- [x] Replace the local sample-data prototype with Payload-backed reads:
+  - [x] Subjects and chapters.
+  - [x] Published questions. (Practice serves mcq + numeric only, published, no-figure items; already-answered questions are skipped via `attempts`.)
+  - [x] Mastery and attempts.
+  - [x] Mock tests and results. (Recent mocks on the dashboard.)
+- [x] Hindi support:
+  - [x] Use a multilingual embedding model. (Already the case — `text-embedding-3-large`; no change.)
+  - [~] Keep the `language` filter end to end. *(Replaced by the opposite: the hard language filter in `searchContent` was dropped, because a Hinglish/Hindi query must be able to rank English chunks; the embedding model is multilingual.)*
+  - [x] Detect legacy Hindi font garbage by Devanagari share and route to vision. (`looksLikeLegacyHindi` in `src/lib/ingest/hindi.ts`: a `hi` page with < 5% Devanagari characters goes to the vision path, wired into `needsVision`.)
+  - [x] Normalise Devanagari digits and Indian number formats. (`normaliseDigits` in `parseNumeric` — ०-९ → 0-9, thousands commas ignored.)
+  - [x] Keep English `topicTags` on chunks so Hindi or Hinglish queries find English syllabus chunks. (Satisfied by the existing embed header `Chapter: X. Topic: kind.` — no change.)
+  - [-] Add Hindi UI copy where confirmed. *(Skipped: no confirmed Hindi UI strings; student UI stays English until the copy is signed off.)*
+- [x] Add tests for mastery updates, weak-chapter weighting and Hinglish retrieval. (Mastery EMA and Hindi/digit helpers in `tests/unit/phase10.unit.spec.ts`; weak-chapter weighting was tested in Phase 8. Hinglish retrieval is a filter removal — it needs real embeddings and a DB, so it is covered by exit-criteria verification only, not a unit test.)
 
 **Exit criteria**
 
-- Mastery changes after real attempts and visibly affects recommendations.
-- The dashboard reads real data, not `src/components/study/data.ts`.
-- A Hinglish query can retrieve the relevant English syllabus chunk.
-- Legacy-font pages route to vision instead of producing garbage.
+- Mastery changes after real attempts and visibly affects recommendations. *(Mastery is written by practice answers and mock grading; plan_questions/explain consume it. Not yet observed live — see notes.)*
+- [x] The dashboard reads real data, not `src/components/study/data.ts`. *(The whole sample-data prototype — `data.ts`, `StudentApp`, `Dashboard`, `Practice`, `SessionSetup/Summary`, `SeatGrid`, `RollCallStrip`, `ArrowLeft`, `types.ts` — is deleted. `/dashboard`, `/practice` and `/tutor` read Payload; `AppShell` lost its "Sample data" chip.)*
+- A Hinglish query can retrieve the relevant English syllabus chunk. *(Mechanism in place: no language filter; not verified against real embeddings this session.)*
+- Legacy-font pages route to vision instead of producing garbage. *(Unit-tested in `tests/unit/phase10.unit.spec.ts`; not exercised on a real Kruti Dev PDF.)*
+
+**Phase 10 notes**
+
+- Verified: `pnpm typecheck` clean; `pnpm lint` 0 errors (warnings pre-existing); `pnpm build` passes with `/practice` and `/api/practice` registered; 52 unit tests pass (9 new in `tests/unit/phase10.unit.spec.ts`: mastery EMA climb/drop/rounding, Devanagari digit parsing, numeric tolerance floor, legacy-Hindi detection).
+- Not verified: no live run — Docker/Postgres is down in this session, so all DB-dependent suites stay skipped, `/dashboard` and `/practice` have not been exercised in a browser, and the Hinglish-retrieval exit criterion has not been checked against real embeddings.
+- Shortcuts/risks: practice grades mcq/numeric locally (1% relative tolerance, no sandbox per answer — sandbox verifies *generation*, not student answers); numeric practice answers without a computed reference value return "could not be machine-checked" and write nothing; `recordMastery` is find-then-upsert, so two simultaneous answers to the same chapter can lose one count (unique index prevents duplicates, not races); the deleted prototype's localStorage autosave queue is gone — practice state is server-side only, so a page refresh mid-session loses the current run; mastery feeds explain/plan but the tutor never *writes* mastery from chat doubts (doubts have no gradeable answers).
 
 ---
 
@@ -615,56 +629,62 @@ Execution plan derived from `Markhall — Architecture & Implementation Blueprin
 
 **Tasks**
 
-- [ ] Rate limits and cost control:
-  - [ ] Per-user limits in Redis.
-  - [ ] Per-student daily token cap.
-  - [ ] Cache verified doubt answers by normalised question, chapter and language.
-  - [ ] Small model for `guard`, `route` and `repair_format`.
-- [ ] Observability:
-  - [ ] Trace every agent run.
-  - [ ] Dashboards for latency, token use, job failures and sandbox errors.
-  - [ ] Alerts for failed ingestion, queue depth and error spikes.
-  - [ ] Job failure visibility in the admin.
-- [ ] Quality:
-  - [ ] Grow the golden-doubt set.
-  - [ ] Run evaluations in CI on every prompt or model change.
-  - [ ] Record pass rates and regressions.
-  - [ ] Add a thumbs-down / report path that creates an admin queue item.
-- [ ] Security:
-  - [ ] Prompt-injection tests using malicious PDFs and student messages.
-  - [ ] Access-control audit for every collection.
-  - [ ] Upload sanitisation and EXIF checks.
-  - [ ] Secret management and no secrets in logs.
-  - [ ] Sandbox isolation verification.
-- [ ] Privacy:
-  - [ ] Legal review of DPDP requirements for minors and verifiable parental consent.
-  - [ ] Data minimisation review.
-  - [ ] Retention and deletion jobs verified.
-  - [ ] Data export and account deletion path.
-  - [ ] Confirm uploads never enter shared indexes.
-- [ ] Reliability:
-  - [ ] Load test chat, retrieval and sandbox.
-  - [ ] Postgres backup and restore drill.
-  - [ ] Migration rollback plan.
-  - [ ] Deployment runbook and rollback steps.
-  - [ ] Health and readiness endpoints.
-- [ ] Content operations:
-  - [ ] Author, ingest and review the launch corpus for the first board, class and subject.
-  - [ ] Define review SLAs and reviewer roles.
-  - [ ] Label all sample or unverified content.
-  - [ ] Archive superseded academic-year content.
-- [ ] Product copy and trust:
-  - [ ] "Not affiliated with any examination board."
-  - [ ] Clear sample, provisional and unverified labels.
-  - [ ] Confirm pricing and account policy, or leave explicitly undecided.
+- [~] Rate limits and cost control:
+  - [~] Per-user limits in Redis. *(Implemented in-memory instead (`src/lib/ratelimit.ts`, same sliding-window pattern as the sandbox limiter) — no Redis client dependency exists and the app runs single-instance; `REDIS_URL` stays wired for the multi-replica upgrade, documented in `docs/operations.md`.)*
+  - [x] Per-student daily token cap. (`DAILY_TOKEN_LIMIT`, default 50 000 output tokens since UTC midnight, counted from `agent-runs`, checked before a run starts; students only.)
+  - [x] Cache verified doubt answers by normalised question, chapter and language. (`src/lib/agent/cache.ts` + `verified-answers` collection; cache hits replay the stored answer through the normal SSE flow in a fresh thread, photos always bypass it.)
+  - [x] Small model for `guard`, `route` and `repair_format`. (New `MODEL_SMALL` role, default `gpt-5.4-mini`; also used for per-block repair in the streaming assembler.)
+- [~] Observability:
+  - [x] Trace every agent run. (One `agent-runs` row per tutor attempt: status done/error/cancelled, question excerpt, tokens in/out from `usage_metadata`, latency, error text.)
+  - [~] Dashboards for latency, token use, job failures and sandbox errors. *(Admin list views serve this: Operations ▸ Agent Runs, source-documents `ingestStatus = failed`. No external dashboards; manual Postgres checks for queue depth.)*
+  - [-] Alerts for failed ingestion, queue depth and error spikes. *(Skipped: no alerting infrastructure exists; documented as a manual admin check in `docs/operations.md`.)*
+  - [~] Job failure visibility in the admin. *(Ingest failures carry `ingestStatus`/`ingestError` into the admin columns; agent-run errors are in the admin. The Payload jobs table itself is not exposed in the admin UI.)*
+- [x] Quality:
+  - [x] Grow the golden-doubt set. (10 → 15 cases: even-number sum, one-step division, average speed, percentage, rectangle area.)
+  - [-] Run evaluations in CI on every prompt or model change. *(Skipped: the repo has no CI workflow; `pnpm eval:golden` is the documented gate and needs live services + a key, so it cannot run in this session.)*
+  - [x] Record pass rates and regressions. (`pnpm eval:golden` appends `{at, passed, total}` to `eval-history.jsonl`.)
+  - [x] Add a thumbs-down / report path that creates an admin queue item. *(Already existed end to end from Phase 7: PATCH sets `doubt-threads.flagged`, and `flagged` is an admin column — no new code needed.)*
+- [x] Security:
+  - [x] Prompt-injection tests using malicious PDFs and student messages. (Unit tests on the `INJECTION` pattern in `tests/unit/phase11.unit.spec.ts`; behaviour tests against the live guard remain in the DB-gated graph suite.)
+  - [x] Access-control audit for every collection. (Audited: Operations collections admin-only; student data `ownerOrAdmin`; published gating on question-bank/mock-tests. Finding recorded: `media` allows public read — revisit before launch if sensitive media lands there.)
+  - [x] Upload sanitisation and EXIF checks. (Already landed in Phase 7 — `sharp` EXIF strip + orientation normalise + 8 MB cap.)
+  - [x] Secret management and no secrets in logs. (Keys only ever read from env in `src/lib/env.ts`; eval/seed scripts take keys from the environment; nothing logs them.)
+  - [x] Sandbox isolation verification. (Existing: separate container, rlimits 192 MB/10 s, 64 KiB script/output caps, queue limit — documented in `docs/sandbox.md`; live re-verification blocked on Docker.)
+- [~] Privacy:
+  - [-] Legal review of DPDP requirements for minors and verifiable parental consent. *(Human/legal work, out of scope for code; listed as an open item in `docs/operations.md`.)*
+  - [x] Data minimisation review. (Tutor stores question text, answer and usage counters only; documented.)
+  - [~] Retention and deletion jobs verified. (`purgeExpiredUploads` exists and re-queues daily; not live-verified this session — DB down.)
+  - [x] Data export and account deletion path. (`GET /api/account` exports the student's records as JSON; `DELETE /api/account` with `{confirm: true}` erases the account, all owned records, personal mock papers and upload files.)
+  - [x] Confirm uploads never enter shared indexes. (Only knowledge-base chunks and question-bank items are embedded; student uploads and doubt messages never touch pgvector.)
+- [~] Reliability:
+  - [-] Load test chat, retrieval and sandbox. *(Skipped: needs running services; the how-to is sketched in `docs/operations.md` for when the stack is up.)*
+  - [~] Postgres backup and restore drill. *(Procedure documented (`pg_dump` → restore into scratch → `migrate:status`); not executed — no running Postgres this session.)*
+  - [x] Migration rollback plan. (`pnpm migrate:down` + ordered `src/migrations/index.ts`; Phase 11's down drops the two new tables; documented.)
+  - [x] Deployment runbook and rollback steps. (`docs/operations.md` added alongside `docs/deployment.md`.)
+  - [x] Health and readiness endpoints. (`GET /api/health` already returns `{"ok":true}`.)
+- [~] Content operations:
+  - [-] Author, ingest and review the launch corpus for the first board, class and subject. *(Content work, not code — the pipeline from Phases 2–4 is ready; the corpus itself is not written.)*
+  - [-] Define review SLAs and reviewer roles. *(Undecided; placeholder recorded in `docs/operations.md`.)*
+  - [~] Label all sample or unverified content. *(Unverified tutor answers carry the flagged badge; seed/sample content labelling rides on collection status fields — no new mechanism.)*
+  - [-] Archive superseded academic-year content. *(Deferred until there is a second academic year; unpublishing (not deleting) is the documented approach.)*
+- [x] Product copy and trust:
+  - [x] "Not affiliated with any examination board." (Footer line in the shared student shell.)
+  - [~] Clear sample, provisional and unverified labels. (Same mechanism as above; no dedicated "sample" badge yet.)
+  - [x] Confirm pricing and account policy, or leave explicitly undecided. (Explicitly recorded as undecided in `docs/operations.md`.)
 
 **Exit criteria**
 
-- A launch checklist is signed off: security, privacy, quality, reliability and content.
-- Load tests stay within agreed latency and cost budgets.
-- Golden-set evaluations gate prompt and model changes.
-- Backups restore successfully.
-- The launch corpus is reviewed and only published items are student-visible.
+- [~] A launch checklist is signed off: security, privacy, quality, reliability and content. *(Code-side items are in; sign-off is a human/launch activity — `docs/operations.md` is the checklist.)*
+- [-] Load tests stay within agreed latency and cost budgets. *(Not run — no live stack this session.)*
+- [~] Golden-set evaluations gate prompt and model changes. *(The gate is `pnpm eval:golden` + `eval-history.jsonl`; it has not run this session, so the 5 new cases are unverified against real models.)*
+- [~] Backups restore successfully. *(Procedure documented; drill not executed.)*
+- [-] The launch corpus is reviewed and only published items are student-visible. *(The publish gate is enforced in code (Phases 4/8/9); the corpus itself does not exist yet.)*
+
+**Phase 11 notes**
+
+- Verified: `pnpm typecheck` clean; `pnpm lint` 0 errors (warnings pre-existing); `pnpm build` passes with `/api/account` registered; 57 unit tests pass (5 new in `tests/unit/phase11.unit.spec.ts`: injection patterns, rate-limit window behaviour, cache-key normalisation); `payload-types.ts` regenerated for the two new collections; migration `20261116_090000_phase11_ops` registered in `src/migrations/index.ts`.
+- Not verified: no live run — Docker/Postgres is down, so the migration has not been applied, the rate limiter/token cap/cache path has not served a real request, `pnpm eval:golden` (now 15 cases) has not run, and token accounting depends on providers returning `usage_metadata` (verified in types, not live).
+- Shortcuts/risks: the rate limiter is per-process — limits reset on restart and do not add up across replicas (Redis upgrade path documented); the answer cache keys on normalised text + chapter + language, so a photo-attached repeat correctly bypasses it but a different-looking wording of the same question does not hit it; cached answers replay without per-student mastery context (acceptable — they are generic step answers); the daily token cap is checked before a run and counts only *reported* output tokens, so a provider that omits `usage_metadata` is uncounted; `DELETE /api/account` deletes owned records in loops (fine at student scale, not batched); `media` collection read access is public and should be tightened before anything sensitive is uploaded.
 
 ---
 

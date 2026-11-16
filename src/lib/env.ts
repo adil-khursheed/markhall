@@ -26,6 +26,7 @@ const boolean = (name: string, fallback: boolean) => {
 
 const defaultModels = {
   router: 'gpt-5.6-luna',
+  small: 'gpt-5.4-mini',
   solver: 'gpt-5.4-mini',
   explainer: 'gpt-5.4-mini',
   judge: 'gpt-5.4-mini',
@@ -60,6 +61,7 @@ export const env = {
   get models() {
     return {
       router: optional('MODEL_ROUTER', defaultModel('router')),
+      small: optional('MODEL_SMALL', defaultModel('small')),
       solver: optional('MODEL_SOLVER', defaultModel('solver')),
       explainer: optional('MODEL_EXPLAINER', defaultModel('explainer')),
       judge: optional('MODEL_JUDGE', defaultModel('judge')),
@@ -92,6 +94,9 @@ export const env = {
   },
   get jobsAutoRun() {
     return boolean('JOBS_AUTORUN', false)
+  },
+  get dailyTokenLimit() {
+    return integer('DAILY_TOKEN_LIMIT', 50_000)
   },
   get uploadsDir() {
     return optional('UPLOADS_DIR', './uploads')

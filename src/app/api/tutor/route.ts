@@ -2,6 +2,10 @@ import { getPayload } from 'payload'
 import config from '@payload-config'
 
 import { cancelTurn, getTurn, startTurn, subscribeTurn, type TutorEvent, type Turn } from '@/lib/agent/turn'
+import { findCachedAnswer, questionKey } from '@/lib/agent/cache'
+import { persistExchange } from '@/lib/agent'
+import { tokenBudgetMessage } from '@/lib/cost'
+import { rateLimit } from '@/lib/ratelimit'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -67,7 +71,77 @@ export async function POST(request: Request) {
   }
   if (text.length > 4000) return Response.json({ error: 'Keep the doubt under 4000 characters.' }, { status: 400 })
 
+  if (!rateLimit(`tutor:${user.id}`, 15, 10 * 60 * 1000)) {
+    return Response.json(
+      { error: 'You are sending doubts too quickly. Wait a few minutes and try again.' },
+      { status: 429 },
+    )
+  }
+  const budgetMessage = await tokenBudgetMessage(payload, user)
+  if (budgetMessage) {
+    return Response.json({ error: budgetMessage }, { status: 429 })
+  }
+
+  // The tutor is locked while a timed mock attempt is running.
+  const activeAttempt = await payload
+    .find({
+      collection: 'mock-attempts',
+      where: {
+        and: [{ user: { equals: user.id } }, { status: { equals: 'in_progress' } }],
+      },
+      limit: 1,
+      depth: 0,
+      user,
+      overrideAccess: false,
+    })
+    .catch(() => ({ docs: [] as { id: number }[] }))
+  if (activeAttempt.docs.length) {
+    return Response.json(
+      { error: 'Finish your mock test first. The tutor unlocks once the attempt is submitted.' },
+      { status: 403 },
+    )
+  }
+
   const uploadIds = (body?.uploads ?? []).filter((id) => Number.isInteger(id)).slice(0, 4)
+
+  // A repeat of a verified question (no photos) replays the stored answer
+  // through a fresh thread instead of running the whole graph again.
+  if (!uploadIds.length) {
+    const cacheKey = questionKey({
+      text,
+      subjectId: body?.subjectId,
+      chapterId: body?.chapterId,
+      language: user.preferredLanguage ?? undefined,
+    })
+    const cached = await findCachedAnswer(payload, cacheKey)
+    if (cached) {
+      let cachedThreadId: number
+      try {
+        const thread = await payload.create({ collection: 'doubt-threads', data: { user: user.id, messages: [] } })
+        cachedThreadId = thread.id
+      } catch {
+        return Response.json({ error: 'The tutor could not start right now.' }, { status: 500 })
+      }
+      await persistExchange({
+        payload,
+        user,
+        threadId: cachedThreadId,
+        text,
+        content: cached,
+        flagged: false,
+        chapterId: body?.chapterId,
+      })
+      const replayed: Turn = {
+        threadId: cachedThreadId,
+        status: 'done',
+        history: [
+          { type: 'done', threadId: cachedThreadId, content: cached, mode: 'doubt', flagged: false },
+        ],
+        listeners: new Set(),
+      }
+      return streamTurn(request, replayed, 0)
+    }
+  }
 
   let threadId: number
   try {

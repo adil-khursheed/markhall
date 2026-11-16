@@ -81,6 +81,8 @@ export interface Config {
     'mock-tests': MockTest;
     'mock-attempts': MockAttempt;
     'student-uploads': StudentUpload;
+    'agent-runs': AgentRun;
+    'verified-answers': VerifiedAnswer;
     'payload-kv': PayloadKv;
     'payload-jobs': PayloadJob;
     'payload-locked-documents': PayloadLockedDocument;
@@ -103,6 +105,8 @@ export interface Config {
     'mock-tests': MockTestsSelect<false> | MockTestsSelect<true>;
     'mock-attempts': MockAttemptsSelect<false> | MockAttemptsSelect<true>;
     'student-uploads': StudentUploadsSelect<false> | StudentUploadsSelect<true>;
+    'agent-runs': AgentRunsSelect<false> | AgentRunsSelect<true>;
+    'verified-answers': VerifiedAnswersSelect<false> | VerifiedAnswersSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-jobs': PayloadJobsSelect<false> | PayloadJobsSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
@@ -124,6 +128,8 @@ export interface Config {
     tasks: {
       embedContent: TaskEmbedContent;
       generateQuestions: TaskGenerateQuestions;
+      buildMockTest: TaskBuildMockTest;
+      gradeMockAttempt: TaskGradeMockAttempt;
       purgeExpiredUploads: TaskPurgeExpiredUploads;
       inline: {
         input: unknown;
@@ -454,10 +460,11 @@ export interface MockAttempt {
         aiScore?: number | null;
         finalScore?: number | null;
         feedback?: string | null;
-        gradingStatus?: ('pending' | 'graded') | null;
+        gradingStatus?: ('pending' | 'graded' | 'needs_review') | null;
         id?: string | null;
       }[]
     | null;
+  reviewRequested?: boolean | null;
   totalScore?: number | null;
   status?: ('in_progress' | 'submitted' | 'graded' | 'expired') | null;
   updatedAt: string;
@@ -491,6 +498,37 @@ export interface StudentUpload {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "agent-runs".
+ */
+export interface AgentRun {
+  id: number;
+  user: number | User;
+  thread?: (number | null) | DoubtThread;
+  status: 'done' | 'error' | 'cancelled';
+  question?: string | null;
+  tokensIn?: number | null;
+  tokensOut?: number | null;
+  latencyMs?: number | null;
+  error?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "verified-answers".
+ */
+export interface VerifiedAnswer {
+  id: number;
+  hash: string;
+  chapter?: (number | null) | Chapter;
+  language?: string | null;
+  question: string;
+  answer: string;
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -561,7 +599,13 @@ export interface PayloadJob {
     | {
         executedAt: string;
         completedAt: string;
-        taskSlug: 'inline' | 'embedContent' | 'generateQuestions' | 'purgeExpiredUploads';
+        taskSlug:
+          | 'inline'
+          | 'embedContent'
+          | 'generateQuestions'
+          | 'buildMockTest'
+          | 'gradeMockAttempt'
+          | 'purgeExpiredUploads';
         taskID: string;
         input?:
           | {
@@ -595,7 +639,9 @@ export interface PayloadJob {
       }[]
     | null;
   workflowSlug?: 'ingestDocument' | null;
-  taskSlug?: ('inline' | 'embedContent' | 'generateQuestions' | 'purgeExpiredUploads') | null;
+  taskSlug?:
+    | ('inline' | 'embedContent' | 'generateQuestions' | 'buildMockTest' | 'gradeMockAttempt' | 'purgeExpiredUploads')
+    | null;
   queue?: string | null;
   waitUntil?: string | null;
   processing?: boolean | null;
@@ -664,6 +710,14 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'student-uploads';
         value: number | StudentUpload;
+      } | null)
+    | ({
+        relationTo: 'agent-runs';
+        value: number | AgentRun;
+      } | null)
+    | ({
+        relationTo: 'verified-answers';
+        value: number | VerifiedAnswer;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -970,6 +1024,7 @@ export interface MockAttemptsSelect<T extends boolean = true> {
         gradingStatus?: T;
         id?: T;
       };
+  reviewRequested?: T;
   totalScore?: T;
   status?: T;
   updatedAt?: T;
@@ -999,6 +1054,35 @@ export interface StudentUploadsSelect<T extends boolean = true> {
   height?: T;
   focalX?: T;
   focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "agent-runs_select".
+ */
+export interface AgentRunsSelect<T extends boolean = true> {
+  user?: T;
+  thread?: T;
+  status?: T;
+  question?: T;
+  tokensIn?: T;
+  tokensOut?: T;
+  latencyMs?: T;
+  error?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "verified-answers_select".
+ */
+export interface VerifiedAnswersSelect<T extends boolean = true> {
+  hash?: T;
+  chapter?: T;
+  language?: T;
+  question?: T;
+  answer?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1102,6 +1186,31 @@ export interface TaskGenerateQuestions {
     subjectId: number;
     chapterId?: number | null;
     count: number;
+  };
+  output?: unknown;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskBuildMockTest".
+ */
+export interface TaskBuildMockTest {
+  input: {
+    subjectId: number;
+    userId?: number | null;
+    count: number;
+    durationMinutes: number;
+    negativeMarking?: number | null;
+    title?: string | null;
+  };
+  output?: unknown;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskGradeMockAttempt".
+ */
+export interface TaskGradeMockAttempt {
+  input: {
+    attemptId: number;
   };
   output?: unknown;
 }

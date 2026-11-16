@@ -5,6 +5,7 @@ import config from '@payload-config'
 
 import { TutorDesk } from '@/components/tutor/TutorDesk'
 import { getCurrentUser } from '@/lib/auth'
+import { coveragePercent } from '@/lib/mastery'
 
 export const dynamic = 'force-dynamic'
 
@@ -40,6 +41,7 @@ export default async function TutorPage() {
 
   return (
     <TutorDesk
+      coveragePercent={await coveragePercent(payload, user)}
       threads={docs.map((thread) => ({
         id: thread.id,
         preview: threadPreview(

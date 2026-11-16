@@ -4,7 +4,7 @@ import { ChatOpenAI, OpenAIEmbeddings } from '@langchain/openai'
 
 import { env } from '@/lib/env'
 
-export type ModelRole = 'router' | 'solver' | 'explainer' | 'judge' | 'vision'
+export type ModelRole = 'router' | 'small' | 'solver' | 'explainer' | 'judge' | 'vision'
 
 const MAX_OUTPUT_TOKENS = 4096
 

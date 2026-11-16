@@ -1,5 +1,7 @@
 import 'dotenv/config'
 
+import { appendFile } from 'node:fs/promises'
+
 import { getPayload } from 'payload'
 
 import config from '../src/payload.config'
@@ -129,6 +131,11 @@ async function main() {
   }
 
   console.log(`Golden doubts: ${passed}/${goldenDoubts.length} passed.`)
+  // Pass-rate history for regressions between prompt/model changes.
+  await appendFile(
+    'eval-history.jsonl',
+    `${JSON.stringify({ at: new Date().toISOString(), passed, total: goldenDoubts.length })}\n`,
+  ).catch(() => undefined)
   process.exit(passed === goldenDoubts.length ? 0 : 1)
 }
 

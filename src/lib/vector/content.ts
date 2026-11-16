@@ -39,7 +39,8 @@ export async function searchContent<T extends SourceType>(
       classLevel: user.classLevel,
       subjectId: query.subjectId,
       chapterId: query.chapterId,
-      language: user.preferredLanguage ?? undefined,
+      // No hard language filter: the embedding model is multilingual, so a
+      // Hinglish or Hindi query must be able to rank English syllabus chunks.
       difficulty: query.difficulty,
       user,
     },

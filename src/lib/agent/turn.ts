@@ -8,6 +8,7 @@ import { createBlockAssembler, validateBlock } from './blocks'
 import { getCheckpointer } from './checkpointer'
 import { buildTutorGraph, messageText, stripFences } from './graph'
 import { plainTextFallback } from './placeholders'
+import { questionKey, saveCachedAnswer } from './cache'
 import { persistExchange } from './index'
 import {
   emptyComputation,
@@ -130,7 +131,7 @@ async function repairBlock(
   values: Record<string, ComputedValue>,
 ): Promise<string> {
   try {
-    const message = await getModel('router').invoke([
+    const message = await getModel('small').invoke([
       {
         role: 'system',
         content:
@@ -155,9 +156,34 @@ async function drive(
   signal: AbortSignal,
 ) {
   const { payload, user } = input
+  const startedAt = Date.now()
+  let tokensIn = 0
+  let tokensOut = 0
   const emit = (event: TutorEvent) => {
     turn.history.push(event)
     for (const listener of turn.listeners) listener(event)
+  }
+
+  // One agent-runs row per attempt: the admin's cost and failure trace.
+  const trace = async (status: 'done' | 'error' | 'cancelled', message?: string) => {
+    const latencyMs = Date.now() - startedAt
+    await payload
+      .create({
+        collection: 'agent-runs',
+        data: {
+          user: user.id as number,
+          thread: turn.threadId,
+          status,
+          question: input.text.slice(0, 2000),
+          ...(tokensIn ? { tokensIn } : {}),
+          ...(tokensOut ? { tokensOut } : {}),
+          latencyMs,
+          ...(message ? { error: message.slice(0, 2000) } : {}),
+        },
+        depth: 0,
+        overrideAccess: true,
+      })
+      .catch(() => null)
   }
 
   try {
@@ -213,6 +239,14 @@ async function drive(
           const delta = messageText((event.data?.chunk as { content?: unknown } | undefined)?.content)
           if (delta) for (const block of assembler.feed(delta)) await emitBlock(block)
         }
+      } else if (event.event === 'on_chat_model_end') {
+        // Token accounting when the provider reports usage.
+        const usage = (event.data?.output as { usage_metadata?: { input_tokens?: number; output_tokens?: number } } | undefined)
+          ?.usage_metadata
+        if (usage) {
+          tokensIn += usage.input_tokens ?? 0
+          tokensOut += usage.output_tokens ?? 0
+        }
       } else if (event.event === 'on_chain_end') {
         if (node === 'run_python') {
           const computation = (event.data?.output as { computation?: { values?: typeof values } } | undefined)
@@ -241,17 +275,37 @@ async function drive(
       chapterId: input.chapterId,
     })
 
+    // Unverified answers are flagged, so an unflagged validated answer is
+    // safe to reuse verbatim for the same normalised question.
+    if (!flagged && finalState?.validation?.ok !== false) {
+      await saveCachedAnswer(payload, {
+        key: questionKey({
+          text: input.text,
+          subjectId: input.subjectId,
+          chapterId: input.chapterId,
+          language: user.preferredLanguage ?? undefined,
+        }),
+        chapterId: input.chapterId,
+        language: user.preferredLanguage ?? undefined,
+        question: input.text,
+        answer: content,
+      })
+    }
+    await trace('done')
+
     turn.status = 'done'
     emit({ type: 'done', threadId: turn.threadId, content, mode: finalState?.mode ?? 'doubt', flagged })
   } catch (error) {
     turn.status = 'error'
+    const message = signal.aborted
+      ? 'The answer was stopped.'
+      : error instanceof Error
+        ? error.message
+        : 'The tutor could not answer right now. Please try again.'
+    await trace(signal.aborted ? 'cancelled' : 'error', message)
     emit({
       type: 'error',
-      message: signal.aborted
-        ? 'The answer was stopped.'
-        : error instanceof Error
-          ? error.message
-          : 'The tutor could not answer right now. Please try again.',
+      message,
     })
   }
 }
